@@ -91,6 +91,27 @@ Primitive dimensions are derived from the bounding box and use the same project-
 
 GLB models can be imported with an absolute HTTP(S) URL. There is no default model store. Models default to `model-fit: contain` and `model-align: center`; `stretch` and `floor` are also supported. The declared box remains authoritative for layout, selection, collision, and room sizing. For example: `"+1+4/+2+4/+2+4" : "model: https://example.com/modern_chair.glb; model-fit: contain; model-align: floor; rotation: 5,10,5"`. Imported cameras, lights, animations, and model CSG operations are not currently enabled. The model host must allow browser CORS requests.
 
+## Automatic model variants
+
+Only `model` is required. The renderer automatically tries preview and detail GLB files in the same directory, using these filename conventions:
+
+| Declared `model` | Inferred `model-preview` | Inferred `model-detail` |
+| --- | --- | --- |
+| `chair.glb` | `chair.preview.glb` | `chair.detail.glb` |
+| `chair.standard.glb` | `chair.preview.glb` | `chair.detail.glb` |
+
+For example, this declaration discovers variants beside the declared URL as the model's visibility tier changes:
+
+```txt
+"Chair/+0+1/+0+1/+0+1" : "model: https://example.com/models/chair.standard.glb; model-align: floor"
+```
+
+The declared `model` remains the standard asset; the resolver does not generate variant files. The `.standard.glb`, `.preview.glb`, and `.detail.glb` names match the output of `npm run assets:prepare`. URL query strings and fragments are preserved when deriving sibling URLs.
+
+Explicit `model-preview` and `model-detail` declarations override automatic lookup independently. Inherited variants also take precedence; overriding `model` clears inherited variants so new siblings are inferred from the replacement source. If an inferred variant fails to load, the renderer falls back to the declared `model`, retaining any loaded preview while it loads. Explicit variant failures retain the existing preview/error behavior. All assets remain subject to the loading and memory budgets.
+
+See [the model performance guide](docs/performance/README.md) for asset preparation and streaming details.
+
 ## Material declaration reference
 
 Spatial primitives intentionally expose only the basic scalar properties needed by the standard metallic/roughness shading model. Material presets, semantic material families, textures, transparency, and extended physical-material properties are not supported.

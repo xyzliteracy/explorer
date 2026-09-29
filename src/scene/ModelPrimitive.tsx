@@ -7,6 +7,7 @@ import type { ThreeEvent } from '@react-three/fiber';
 import { SkeletonUtils } from 'three-stdlib';
 import { Box3, Vector3, Color, type Material, type Mesh, type Object3D, type Group } from 'three';
 import type { SpatialNode } from '../model/SpatialNode';
+import { resolveModelVariants } from '../model/modelVariants';
 import { resolveModelUrl } from '../model/resolveModelUrl';
 import { modelFitTransformFromBounds, renderedModelPrecisionScale } from './modelFit';
 import { shouldSelectFromClick } from './selectionClick';
@@ -64,17 +65,24 @@ export function ModelObject({ scene, fit, align, node, targetScale, onPrecisionS
   return <group scale={fitted.scale}><group position={fitted.position}><primitive object={imported.scene} dispose={null} /></group></group>;
 }
 
-function StreamingModel({ node, tier, resolved, selected, onPrecisionScaleChange }: { node: SpatialNode; tier: ModelTier; resolved: boolean; selected: boolean; onPrecisionScaleChange?: (value: number | undefined) => void }) {
+export function StreamingModel({ node, tier, resolved, selected, onPrecisionScaleChange }: { node: SpatialNode; tier: ModelTier; resolved: boolean; selected: boolean; onPrecisionScaleChange?: (value: number | undefined) => void }) {
   const model = node.model!;
-  const source = modelTierSource(model, tier);
+  const variants = resolveModelVariants(model);
+  const source = modelTierSource(variants, tier);
   const resolve = (url: string | undefined) => url ? (resolved ? url : resolveModelUrl(url)) : undefined;
-  const previewUrl = tier !== 'none' ? resolve(model.previewSource) : undefined;
+  const previewUrl = tier !== 'none' ? resolve(variants.previewSource) : undefined;
   const targetUrl = resolve(source);
   const preview = useModelAsset(previewUrl, selected ? 3000 : 1000);
   const target = useModelAsset(targetUrl === previewUrl ? undefined : targetUrl, selected ? 2000 : tier === 'detail' ? 100 : 500, selected ? 2000 : tier === 'detail' ? 900 : 500);
-  const asset = target?.value ? target : preview?.value ? preview : undefined;
+  // Only inferred variants fall back to the base asset; explicit variants retain
+  // their existing error/upgrade behavior. The store shares requests across nodes.
+  const inferredTarget = tier === 'preview' ? !model.previewSource : tier === 'detail' && !model.detailSource;
+  const targetFailed = targetUrl === previewUrl ? preview?.error : target?.error;
+  const fallbackUrl = tier !== 'none' && inferredTarget && targetFailed ? resolve(model.source) : undefined;
+  const fallback = useModelAsset(fallbackUrl === targetUrl || fallbackUrl === previewUrl ? undefined : fallbackUrl, selected ? 2000 : 500);
+  const asset = target?.value ? target : fallback?.value ? fallback : preview?.value ? preview : undefined;
   if (!asset?.value) {
-    const error = target?.error ?? preview?.error;
+    const error = fallbackUrl ? fallback?.error : target?.error ?? preview?.error;
     return <><ModelBox color={error ? '#efad44' : '#60a5fa'} />{error && <Html center><span role="status" title={error.message} style={{ display: 'block', width: 160, padding: 6, background: '#171c26', color: '#ffcf85', fontSize: 12 }}>{error.message.includes('budget') ? 'Use an optimized model for this device' : 'Model could not be loaded'}</span></Html>}</>;
   }
   return <ModelObject scene={asset.value.scene} fit={model.fit} align={model.align} node={node} targetScale={node.transform.scale} onPrecisionScaleChange={onPrecisionScaleChange} />;

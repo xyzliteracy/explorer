@@ -94,3 +94,15 @@ Selected Explorer objects stay resident outside the view and receive queue/rende
 ## Asset inspection and per-model budgets
 
 Run `npm run assets:inspect -- INPUT_DIRECTORY REPORT.json` before uploading assets. Add `--strict` to fail CI for budget warnings. The report includes decoded geometry bytes, conservative texture memory, dimensions, triangle/draw-call counts across nodes, animation bytes, cameras and lights. Recommended ceilings per model are 60,000 triangles, 32 draw calls, 1024 px textures and 32 MiB geometry/texture memory; scene admission remains 128 MiB and 600,000 triangles. Texture estimates use RGBA plus mipmaps conservatively; actual KTX2 GPU memory depends on the device. This report is offline metadata, not a guarantee about peak decode memory. Preparation strips authored cameras/lights before writing LODs.
+
+### Automatic model variants
+
+A declaration such as `model: chair.glb` automatically attempts
+`chair.preview.glb` and `chair.detail.glb` at the corresponding visibility tiers.
+`model: chair.standard.glb` uses those same siblings, matching `assets:prepare`.
+The base `model` URL remains the standard asset. Query strings and fragments are
+preserved. Explicit `model-preview` or `model-detail` values override inference
+for that tier, including inherited values. Inference happens after inheritance
+and URL resolution, before asset transport. Failed inferred variants fall back
+to the declared model; a loaded preview remains visible while it loads. Assets
+continue to obey the shared loading and memory budgets.
