@@ -1,0 +1,742 @@
+[
+  {
+    "name": "bed_lamp.glb",
+    "originalBytes": 18612760,
+    "originalTriangles": 1998464,
+    "originalTextures": [
+      {
+        "size": [
+          4096,
+          4096
+        ],
+        "bytes": 7503361
+      },
+      {
+        "size": [
+          2048,
+          2048
+        ],
+        "bytes": 1345570
+      },
+      {
+        "size": [
+          4096,
+          4096
+        ],
+        "bytes": 6654345
+      }
+    ],
+    "levels": {
+      "preview": {
+        "file": "bed_lamp.preview.glb",
+        "triangles": 7998,
+        "bytes": 206944,
+        "textures": []
+      },
+      "standard": {
+        "file": "bed_lamp.standard.glb",
+        "triangles": 22140,
+        "bytes": 1023560,
+        "textures": [
+          [
+            512,
+            512
+          ],
+          [
+            512,
+            512
+          ],
+          [
+            512,
+            512
+          ]
+        ]
+      },
+      "detail": {
+        "file": "bed_lamp.detail.glb",
+        "triangles": 60000,
+        "bytes": 3433748,
+        "textures": [
+          [
+            1024,
+            1024
+          ],
+          [
+            1024,
+            1024
+          ],
+          [
+            1024,
+            1024
+          ]
+        ]
+      }
+    }
+  },
+  {
+    "name": "ceiling_lamp.glb",
+    "originalBytes": 29262944,
+    "originalTriangles": 1995546,
+    "originalTextures": [
+      {
+        "size": [
+          2048,
+          2048
+        ],
+        "bytes": 3243081
+      },
+      {
+        "size": [
+          2048,
+          2048
+        ],
+        "bytes": 2279233
+      },
+      {
+        "size": [
+          2048,
+          2048
+        ],
+        "bytes": 2243139
+      }
+    ],
+    "levels": {
+      "preview": {
+        "file": "ceiling_lamp.preview.glb",
+        "triangles": 7790,
+        "bytes": 197000,
+        "textures": []
+      },
+      "standard": {
+        "file": "ceiling_lamp.standard.glb",
+        "triangles": 57640,
+        "bytes": 2087532,
+        "textures": [
+          [
+            512,
+            512
+          ],
+          [
+            512,
+            512
+          ],
+          [
+            512,
+            512
+          ]
+        ]
+      },
+      "detail": {
+        "file": "ceiling_lamp.detail.glb",
+        "triangles": 59998,
+        "bytes": 4692724,
+        "textures": [
+          [
+            1024,
+            1024
+          ],
+          [
+            1024,
+            1024
+          ],
+          [
+            1024,
+            1024
+          ]
+        ]
+      }
+    }
+  },
+  {
+    "name": "centre_rug.glb",
+    "originalBytes": 29719448,
+    "originalTriangles": 1985282,
+    "originalTextures": [
+      {
+        "size": [
+          2048,
+          2048
+        ],
+        "bytes": 4735539
+      },
+      {
+        "size": [
+          2048,
+          2048
+        ],
+        "bytes": 1810993
+      },
+      {
+        "size": [
+          2048,
+          2048
+        ],
+        "bytes": 3719007
+      }
+    ],
+    "levels": {
+      "preview": {
+        "file": "centre_rug.preview.glb",
+        "triangles": 8000,
+        "bytes": 195944,
+        "textures": []
+      },
+      "standard": {
+        "file": "centre_rug.standard.glb",
+        "triangles": 20000,
+        "bytes": 1152296,
+        "textures": [
+          [
+            512,
+            512
+          ],
+          [
+            512,
+            512
+          ],
+          [
+            512,
+            512
+          ]
+        ]
+      },
+      "detail": {
+        "file": "centre_rug.detail.glb",
+        "triangles": 60000,
+        "bytes": 4216112,
+        "textures": [
+          [
+            1024,
+            1024
+          ],
+          [
+            1024,
+            1024
+          ],
+          [
+            1024,
+            1024
+          ]
+        ]
+      }
+    }
+  },
+  {
+    "name": "double_bed.glb",
+    "originalBytes": 35185120,
+    "originalTriangles": 3017468,
+    "originalTextures": [
+      {
+        "size": [
+          2048,
+          2048
+        ],
+        "bytes": 2394535
+      },
+      {
+        "size": [
+          2048,
+          2048
+        ],
+        "bytes": 1221595
+      },
+      {
+        "size": [
+          2048,
+          2048
+        ],
+        "bytes": 1660075
+      }
+    ],
+    "levels": {
+      "preview": {
+        "file": "double_bed.preview.glb",
+        "triangles": 8856,
+        "bytes": 170024,
+        "textures": []
+      },
+      "standard": {
+        "file": "double_bed.standard.glb",
+        "triangles": 248116,
+        "bytes": 5149844,
+        "textures": [
+          [
+            512,
+            512
+          ],
+          [
+            512,
+            512
+          ],
+          [
+            512,
+            512
+          ]
+        ]
+      },
+      "detail": {
+        "file": "double_bed.detail.glb",
+        "triangles": 248226,
+        "bytes": 7189828,
+        "textures": [
+          [
+            1024,
+            1024
+          ],
+          [
+            1024,
+            1024
+          ],
+          [
+            1024,
+            1024
+          ]
+        ]
+      }
+    }
+  },
+  {
+    "name": "iron_chair.glb",
+    "originalBytes": 22114248,
+    "originalTriangles": 1817264,
+    "originalTextures": [
+      {
+        "size": [
+          2048,
+          2048
+        ],
+        "bytes": 1480719
+      },
+      {
+        "size": [
+          2048,
+          2048
+        ],
+        "bytes": 1744688
+      },
+      {
+        "size": [
+          2048,
+          2048
+        ],
+        "bytes": 1122508
+      }
+    ],
+    "levels": {
+      "preview": {
+        "file": "iron_chair.preview.glb",
+        "triangles": 7950,
+        "bytes": 198656,
+        "textures": []
+      },
+      "standard": {
+        "file": "iron_chair.standard.glb",
+        "triangles": 21294,
+        "bytes": 1132504,
+        "textures": [
+          [
+            512,
+            512
+          ],
+          [
+            512,
+            512
+          ],
+          [
+            512,
+            512
+          ]
+        ]
+      },
+      "detail": {
+        "file": "iron_chair.detail.glb",
+        "triangles": 59996,
+        "bytes": 3706176,
+        "textures": [
+          [
+            1024,
+            1024
+          ],
+          [
+            1024,
+            1024
+          ],
+          [
+            1024,
+            1024
+          ]
+        ]
+      }
+    }
+  },
+  {
+    "name": "mosquito_net.glb",
+    "originalBytes": 7394624,
+    "originalTriangles": 1903974,
+    "originalTextures": [
+      {
+        "size": [
+          2048,
+          2048
+        ],
+        "bytes": 1819149
+      },
+      {
+        "size": [
+          2048,
+          2048
+        ],
+        "bytes": 1087157
+      },
+      {
+        "size": [
+          2048,
+          2048
+        ],
+        "bytes": 1482277
+      }
+    ],
+    "levels": {
+      "preview": {
+        "file": "mosquito_net.preview.glb",
+        "triangles": 7906,
+        "bytes": 207028,
+        "textures": []
+      },
+      "standard": {
+        "file": "mosquito_net.standard.glb",
+        "triangles": 35438,
+        "bytes": 1405188,
+        "textures": [
+          [
+            512,
+            512
+          ],
+          [
+            512,
+            512
+          ],
+          [
+            512,
+            512
+          ]
+        ]
+      },
+      "detail": {
+        "file": "mosquito_net.detail.glb",
+        "triangles": 59966,
+        "bytes": 3772856,
+        "textures": [
+          [
+            1024,
+            1024
+          ],
+          [
+            1024,
+            1024
+          ],
+          [
+            1024,
+            1024
+          ]
+        ]
+      }
+    }
+  },
+  {
+    "name": "open_wardrobe.glb",
+    "originalBytes": 24093056,
+    "originalTriangles": 1995366,
+    "originalTextures": [
+      {
+        "size": [
+          2048,
+          2048
+        ],
+        "bytes": 2498869
+      },
+      {
+        "size": [
+          2048,
+          2048
+        ],
+        "bytes": 1135879
+      },
+      {
+        "size": [
+          2048,
+          2048
+        ],
+        "bytes": 1758709
+      }
+    ],
+    "levels": {
+      "preview": {
+        "file": "open_wardrobe.preview.glb",
+        "triangles": 7990,
+        "bytes": 191060,
+        "textures": []
+      },
+      "standard": {
+        "file": "open_wardrobe.standard.glb",
+        "triangles": 19996,
+        "bytes": 1048360,
+        "textures": [
+          [
+            512,
+            512
+          ],
+          [
+            512,
+            512
+          ],
+          [
+            512,
+            512
+          ]
+        ]
+      },
+      "detail": {
+        "file": "open_wardrobe.detail.glb",
+        "triangles": 59998,
+        "bytes": 3583128,
+        "textures": [
+          [
+            1024,
+            1024
+          ],
+          [
+            1024,
+            1024
+          ],
+          [
+            1024,
+            1024
+          ]
+        ]
+      }
+    }
+  },
+  {
+    "name": "side_shelves.glb",
+    "originalBytes": 25720360,
+    "originalTriangles": 1993788,
+    "originalTextures": [
+      {
+        "size": [
+          2048,
+          2048
+        ],
+        "bytes": 2986002
+      },
+      {
+        "size": [
+          2048,
+          2048
+        ],
+        "bytes": 1448155
+      },
+      {
+        "size": [
+          2048,
+          2048
+        ],
+        "bytes": 2144525
+      }
+    ],
+    "levels": {
+      "preview": {
+        "file": "side_shelves.preview.glb",
+        "triangles": 7998,
+        "bytes": 195808,
+        "textures": []
+      },
+      "standard": {
+        "file": "side_shelves.standard.glb",
+        "triangles": 20000,
+        "bytes": 1088384,
+        "textures": [
+          [
+            512,
+            512
+          ],
+          [
+            512,
+            512
+          ],
+          [
+            512,
+            512
+          ]
+        ]
+      },
+      "detail": {
+        "file": "side_shelves.detail.glb",
+        "triangles": 60000,
+        "bytes": 3819456,
+        "textures": [
+          [
+            1024,
+            1024
+          ],
+          [
+            1024,
+            1024
+          ],
+          [
+            1024,
+            1024
+          ]
+        ]
+      }
+    }
+  },
+  {
+    "name": "window_curtains.glb",
+    "originalBytes": 8176160,
+    "originalTriangles": 1968350,
+    "originalTextures": [
+      {
+        "size": [
+          2048,
+          2048
+        ],
+        "bytes": 2087068
+      },
+      {
+        "size": [
+          2048,
+          2048
+        ],
+        "bytes": 1520938
+      },
+      {
+        "size": [
+          2048,
+          2048
+        ],
+        "bytes": 1639986
+      }
+    ],
+    "levels": {
+      "preview": {
+        "file": "window_curtains.preview.glb",
+        "triangles": 7986,
+        "bytes": 194624,
+        "textures": []
+      },
+      "standard": {
+        "file": "window_curtains.standard.glb",
+        "triangles": 30500,
+        "bytes": 1247080,
+        "textures": [
+          [
+            512,
+            512
+          ],
+          [
+            512,
+            512
+          ],
+          [
+            512,
+            512
+          ]
+        ]
+      },
+      "detail": {
+        "file": "window_curtains.detail.glb",
+        "triangles": 59976,
+        "bytes": 3795048,
+        "textures": [
+          [
+            1024,
+            1024
+          ],
+          [
+            1024,
+            1024
+          ],
+          [
+            1024,
+            1024
+          ]
+        ]
+      }
+    }
+  },
+  {
+    "name": "wooden_door.glb",
+    "originalBytes": 35352664,
+    "originalTriangles": 3134488,
+    "originalTextures": [
+      {
+        "size": [
+          2048,
+          2048
+        ],
+        "bytes": 2489301
+      },
+      {
+        "size": [
+          2048,
+          2048
+        ],
+        "bytes": 1275746
+      },
+      {
+        "size": [
+          2048,
+          2048
+        ],
+        "bytes": 1660041
+      }
+    ],
+    "levels": {
+      "preview": {
+        "file": "wooden_door.preview.glb",
+        "triangles": 7899,
+        "bytes": 179192,
+        "textures": []
+      },
+      "standard": {
+        "file": "wooden_door.standard.glb",
+        "triangles": 340718,
+        "bytes": 6567916,
+        "textures": [
+          [
+            512,
+            512
+          ],
+          [
+            512,
+            512
+          ],
+          [
+            512,
+            512
+          ]
+        ]
+      },
+      "detail": {
+        "file": "wooden_door.detail.glb",
+        "triangles": 340688,
+        "bytes": 8862288,
+        "textures": [
+          [
+            1024,
+            1024
+          ],
+          [
+            1024,
+            1024
+          ],
+          [
+            1024,
+            1024
+          ]
+        ]
+      }
+    }
+  }
+]

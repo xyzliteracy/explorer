@@ -1,37 +1,26 @@
-export const MODEL_STORE = 'https://pub-25795629d417496fb6c539ab16b4e4f8.r2.dev/';
+/** Validate declarations without assigning a storage location to relative paths. */
+export function validateModelSource(source: string): string {
+  const value = source.trim();
+  if (!value || value.startsWith('/') || value.includes('\\')) throw Error('Model URL is invalid.');
+  const absolute = /^[a-z][a-z\d+.-]*:/i.test(value);
+  if (!absolute) {
+    const path = decodeURIComponent(value.split(/[?#]/, 1)[0]);
+    if (path.split('/').includes('..')) throw Error('Relative model paths must remain inside the scene directory.');
+    if (!/\.glb$/i.test(path)) throw Error('Model URL must reference a .glb file.');
+    return value;
+  }
+  const url = new URL(value);
+  if (!['http:', 'https:'].includes(url.protocol)) throw Error('Model URLs require http or https.');
+  if (!/\.glb$/i.test(url.pathname)) throw Error('Model URL must reference a .glb file.');
+  return value;
+}
 
-export function resolveModelUrl(source: string, modelStore = MODEL_STORE): string {
-  const trimmed = source.trim();
-  if (!trimmed || trimmed.startsWith('//') || trimmed.includes('\\')) throw new Error('Model URL is invalid.');
-  const isAbsolute = /^[a-z][a-z\d+.-]*:/i.test(trimmed);
-  if (!isAbsolute) {
-    let path: string;
-    try {
-      path = decodeURIComponent(trimmed.split(/[?#]/, 1)[0]);
-    } catch {
-      throw new Error('Model URL is malformed.');
-    }
-    if (path.split('/').includes('..')) throw new Error('Relative model paths must remain inside MODEL_STORE.');
-  }
-
-  let base: URL;
-  let resolved: URL;
-  try {
-    base = new URL(modelStore);
-    resolved = new URL(trimmed, base);
-  } catch {
-    throw new Error('Model URL is malformed.');
-  }
-  if (resolved.protocol !== 'https:' && resolved.protocol !== 'http:') {
-    throw new Error('Model URLs require http or https.');
-  }
-  if (!/\.glb$/i.test(resolved.pathname)) throw new Error('Model URL must reference a .glb file.');
-
-  if (!isAbsolute) {
-    const basePath = base.pathname.endsWith('/') ? base.pathname : `${base.pathname}/`;
-    if (resolved.origin !== base.origin || !resolved.pathname.startsWith(basePath)) {
-      throw new Error('Relative model paths must remain inside MODEL_STORE.');
-    }
-  }
-  return resolved.href;
+export function resolveModelUrl(source: string, base?: string): string {
+  const value = validateModelSource(source);
+  if (/^[a-z][a-z\d+.-]*:/i.test(value)) return new URL(value).href;
+  if (!base) throw Error('Relative model paths require an opened scene file. Open the .xyzdsl file containing this model, or use an absolute HTTP(S) GLB URL.');
+  const root = new URL(base);
+  const url = new URL(value, root);
+  if (url.origin !== root.origin || !url.pathname.startsWith(root.pathname.endsWith('/') ? root.pathname : root.pathname + '/')) throw Error('Relative model paths must remain inside the scene directory.');
+  return url.href;
 }

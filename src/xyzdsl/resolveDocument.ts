@@ -80,6 +80,8 @@ function mergeModel(base: XyzDslModelSpec, override: XyzDslModelSpec): XyzDslMod
 
   return {
     source: override.sourceDeclared ? override.source : base.source,
+    previewSource: override.previewSource ?? (override.sourceDeclared ? undefined : base.previewSource),
+    detailSource: override.detailSource ?? (override.sourceDeclared ? undefined : base.detailSource),
     fit: override.fitDeclared ? override.fit : base.fit,
     align: override.alignDeclared ? override.align : base.align,
     declared: true,
@@ -429,7 +431,7 @@ export function resolveXyzDslDocument(objects: SpatialObject[]): {
       diagnostics.push({
         line: object.lineNumber,
         source: object.source,
-        message: 'model-fit and model-align require an effective model declaration.',
+        message: 'Model options require an effective model declaration.',
       });
     }
 

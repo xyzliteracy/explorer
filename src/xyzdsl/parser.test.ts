@@ -79,7 +79,7 @@ describe('parseXyzDslDocument', () => {
     const unsafe = parseXyzDslDocument('"+1+1/+2+1/+2+1" : "model: ../chair.glb"');
     const operation = parseXyzDslDocument('"+1+1/+2+1/+2+1" : "model: chair.glb; operation: union"');
     expect(unsafe.ok).toBe(false);
-    expect(unsafe.diagnostics[0].message).toContain('inside MODEL_STORE');
+    expect(unsafe.diagnostics[0].message).toContain('inside the scene directory');
     expect(operation.ok).toBe(true);
     expect(operation.value?.[0].geometry.operation).toBe('union');
   });

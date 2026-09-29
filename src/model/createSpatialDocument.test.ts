@@ -24,7 +24,7 @@ describe('createSpatialDocument namespaced spatial declarations', () => {
   it('reports model layout properties on an instance without an effective model', () => {
     const document = createSpatialDocument('"+0+1/+0+1/+0+1" : "model-align: floor"');
     expect(document.diagnostics.map(({ message }) => message)).toContain(
-      'model-fit and model-align require an effective model declaration.',
+      'Model options require an effective model declaration.',
     );
   });
 

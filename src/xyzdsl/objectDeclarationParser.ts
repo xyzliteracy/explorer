@@ -29,6 +29,8 @@ const SUPPORTED_OBJECT_PROPERTIES = new Set([
   'content-url',
   'content-url-uri',
   'model',
+  'model-preview',
+  'model-detail',
   'model-fit',
   'model-align',
 ]);

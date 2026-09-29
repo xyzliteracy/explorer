@@ -55,6 +55,8 @@ export type XyzDslModelFit = 'contain' | 'stretch';
 export type XyzDslModelAlign = 'center' | 'floor';
 
 export interface XyzDslModelSpec {
+  previewSource?: string;
+  detailSource?: string;
   source?: string;
   fit: XyzDslModelFit;
   align: XyzDslModelAlign;

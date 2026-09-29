@@ -12,9 +12,9 @@ interface CameraClipControllerProps {
 export function CameraClipController({ nodes, scale }: CameraClipControllerProps) {
   const sceneBounds = useMemo(() => sceneBoundsFromNodes(nodes), [nodes]);
 
-  useFrame(({ camera }) => {
+  useFrame(({ camera, invalidate }) => {
     if (!('isPerspectiveCamera' in camera) || !camera.isPerspectiveCamera) return;
-    updateCameraClipPlanes(camera as PerspectiveCamera, scale, sceneBounds);
+    if (updateCameraClipPlanes(camera as PerspectiveCamera, scale, sceneBounds)) invalidate();
   });
 
   return null;

@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
+import { initialQuality, QUALITY, QUALITY_KEY, type RenderQuality } from '../performance/renderQuality';
+import type { AssetStatus } from '../performance/ModelAssetStore';
+import { ModelRuntime, PERFORMANCE_CANVAS } from '../performance/ModelRuntime';
 import { Canvas } from '@react-three/fiber';
 import type { SpatialDocument } from '../model/SpatialDocument';
 import { dimensionsFromNodes } from '../model/room';
@@ -47,6 +50,9 @@ const DEFAULT_ORBIT_TARGET: [number, number, number] = [0.6, 0.5, 0.4];
 const DEFAULT_CAMERA_POSITION: [number, number, number] = [1.4, 1.1, 1.8];
 
 export function SceneRoot({ document: spatialDocument, selectedNodeId, onSelectNode, cameraMode, onCameraModeChange, editorMode, selectedNodeCanEdit, editorLinearStep, editorRotationStep, linearStepChoice, onLinearStepChoiceChange, onRotationStepChange, onMoveNode, onResizeNode, onRotateNode, onCreateNode }: SceneRootProps) {
+  const [quality, setQuality] = useState<RenderQuality>(initialQuality);
+  const [assetStatus, setAssetStatus] = useState<AssetStatus>();
+  useEffect(() => { try { localStorage.setItem(QUALITY_KEY, quality); } catch { /* Optional persistence. */ } }, [quality]);
   const cameraSizingNodes = useMemo(() => nodesForRoomSizing(spatialDocument), [spatialDocument]);
   const roomDimensions = dimensionsFromNodes(cameraSizingNodes);
   const [modelPrecisionScales, setModelPrecisionScales] = useState<Record<string, number>>({});
@@ -84,6 +90,7 @@ export function SceneRoot({ document: spatialDocument, selectedNodeId, onSelectN
     return selectedNode?.transform.position ?? DEFAULT_ORBIT_TARGET;
   }, [selectedNode]);
 
+  const invalidateRef = useRef<() => void>(() => {});
   const cameraRef = useRef<ThreePerspectiveCamera>(null);
   const handledFocusRequest = useRef(0);
   useEffect(() => {
@@ -93,23 +100,27 @@ export function SceneRoot({ document: spatialDocument, selectedNodeId, onSelectN
     const pose = inspectionPose(selectedNode, forward);
     cameraRef.current.position.set(...pose.position);
     cameraRef.current.lookAt(...pose.target);
+    invalidateRef.current();
   }, [focusRequest, selectedNode]);
   useEffect(() => {
     if (!cameraRef.current || resetRequest === 0) return;
     cameraRef.current.position.set(...DEFAULT_CAMERA_POSITION);
     cameraRef.current.lookAt(...DEFAULT_ORBIT_TARGET);
+    invalidateRef.current();
   }, [resetRequest]);
 
   return (
     <div className="scene-viewport">
     <Canvas
       className="scene-canvas"
-      shadows
-      gl={{ antialias: true }}
+      {...PERFORMANCE_CANVAS}
+      dpr={[1, QUALITY[quality].dpr]}
+      onCreated={({ invalidate }) => { invalidateRef.current = invalidate; }}
       onPointerMissed={() => {
         if (cameraMode === 'orbit') onSelectNode?.(undefined);
       }}
     >
+      <ModelRuntime onStatus={import.meta.env.DEV ? setAssetStatus : undefined}>
       <color attach="background" args={['#151820']} />
       <PerspectiveCamera ref={cameraRef} makeDefault position={DEFAULT_CAMERA_POSITION} fov={45} near={clips.near} far={clips.far} />
       <Lighting />
@@ -124,7 +135,7 @@ export function SceneRoot({ document: spatialDocument, selectedNodeId, onSelectN
       ))}
       {spatialDocument.renderNodes.map((node) => (
         node.model?.source ? (
-          <ModelPrimitive key={node.id} node={node} onSelect={onSelectNode} selectionEnabled={cameraMode === 'orbit'} onPrecisionScaleChange={handleModelPrecisionScaleChange} />
+          <ModelPrimitive key={node.id} node={node} selected={node.id === selectedNodeId} maxTier={QUALITY[quality].maxTier} onSelect={onSelectNode} selectionEnabled={cameraMode === 'orbit'} onPrecisionScaleChange={handleModelPrecisionScaleChange} />
         ) : node.content?.kind ? (
           <ContentPrimitive key={node.id} node={node} onSelect={onSelectNode} selectionEnabled={cameraMode === 'orbit'} />
         ) : (
@@ -132,7 +143,7 @@ export function SceneRoot({ document: spatialDocument, selectedNodeId, onSelectN
         )
       ))}
       {selectedNode ? <SelectionBounds node={selectedNode} /> : null}
-      {cameraMode === 'orbit' ? <OrbitControls target={orbitTarget} maxPolarAngle={Math.PI} /> : null}
+      {cameraMode === 'orbit' ? <OrbitControls makeDefault target={orbitTarget} maxPolarAngle={Math.PI} /> : null}
       <PovControls
         active={cameraMode === 'pov'}
         collision={collision}
@@ -155,8 +166,13 @@ export function SceneRoot({ document: spatialDocument, selectedNodeId, onSelectN
         onRotate={onRotateNode}
         onCreate={onCreateNode}
       />
+      </ModelRuntime>
     </Canvas>
     <section className={`camera-controls camera-controls--${cameraMode}`} aria-label="Camera navigation">
+      <label>Quality <select aria-label="Rendering quality" value={quality} onChange={event => setQuality(event.target.value as RenderQuality)}>
+        <option value="low">Low</option><option value="balanced">Balanced</option><option value="high">High</option>
+      </select></label>
+      {import.meta.env.DEV && assetStatus && <small aria-label="Model resource usage">{assetStatus.ready}/{assetStatus.total} models · {(assetStatus.bytes / 1048576).toFixed(1)} MiB estimated · {assetStatus.loading} loading</small>}
       <div className="camera-mode-switch" role="group" aria-label="Camera mode">
         <button type="button" aria-pressed={cameraMode === 'orbit'} onClick={() => onCameraModeChange('orbit')}>Orbit</button>
         <button type="button" aria-pressed={cameraMode === 'pov'} onClick={() => onCameraModeChange('pov')}>POV</button>

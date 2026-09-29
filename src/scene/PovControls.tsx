@@ -19,7 +19,7 @@ function editableTarget(target: EventTarget | null): boolean {
 }
 
 export function PovControls({ active, collision, collisionRadius, speed, onLockChange, onSelectNode }: PovControlsProps) {
-  const { camera, gl, scene } = useThree();
+  const { camera, gl, scene, invalidate } = useThree();
   const keys = useRef(new Set<string>());
   const yaw = useRef(0);
   const pitch = useRef(0);
@@ -43,7 +43,7 @@ export function PovControls({ active, collision, collisionRadius, speed, onLockC
       else keys.current.clear();
       onLockChange(locked);
     };
-    const keyDown = (event: KeyboardEvent) => { if (!editableTarget(event.target)) keys.current.add(event.code); };
+    const keyDown = (event: KeyboardEvent) => { if (!editableTarget(event.target)) { keys.current.add(event.code); invalidate(); } };
     const keyUp = (event: KeyboardEvent) => keys.current.delete(event.code);
     const keyUpAll = () => keys.current.clear();
     const mouseMove = (event: MouseEvent) => {
@@ -51,6 +51,7 @@ export function PovControls({ active, collision, collisionRadius, speed, onLockC
       yaw.current -= event.movementX * 0.002;
       pitch.current = MathUtils.clamp(pitch.current - event.movementY * 0.002, -Math.PI / 2 + 0.01, Math.PI / 2 - 0.01);
       camera.rotation.set(pitch.current, yaw.current, 0, 'YXZ');
+      invalidate();
     };
     const pointerDown = (event: PointerEvent) => {
       if (document.pointerLockElement !== gl.domElement) {
@@ -70,6 +71,7 @@ export function PovControls({ active, collision, collisionRadius, speed, onLockC
     document.addEventListener('keyup', keyUp);
     document.addEventListener('mousemove', mouseMove);
     window.addEventListener('blur', keyUpAll);
+    document.addEventListener('visibilitychange', keyUpAll);
     gl.domElement.addEventListener('pointerdown', pointerDown);
     return () => {
       document.removeEventListener('pointerlockchange', lockChange);
@@ -77,10 +79,11 @@ export function PovControls({ active, collision, collisionRadius, speed, onLockC
       document.removeEventListener('keyup', keyUp);
       document.removeEventListener('mousemove', mouseMove);
       window.removeEventListener('blur', keyUpAll);
+      document.removeEventListener('visibilitychange', keyUpAll);
       gl.domElement.removeEventListener('pointerdown', pointerDown);
       keys.current.clear();
     };
-  }, [active, camera, gl, onLockChange, onSelectNode, scene]);
+  }, [active, camera, gl, onLockChange, onSelectNode, scene, invalidate]);
 
   useFrame((_, frameDelta) => {
     if (!active || document.pointerLockElement !== gl.domElement) return;
@@ -94,6 +97,7 @@ export function PovControls({ active, collision, collisionRadius, speed, onLockC
       backward: Number(keys.current.has('KeyS') || keys.current.has('ArrowDown')) - Number(keys.current.has('KeyW') || keys.current.has('ArrowUp')),
     }, yaw.current, distance);
     if (!movement.lengthSq()) return;
+    invalidate();
     if (collision && sweptSphereIntersectsScene(
       scene,
       camera.position,
