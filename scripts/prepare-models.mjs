@@ -8,15 +8,23 @@ import draco3d from 'draco3d';
 import sharp from 'sharp';
 import { encodeToKTX2 } from 'ktx2-encoder';
 
-const [input, output] = process.argv.slice(2);
-if (!input || !output || path.resolve(input) === path.resolve(output)) throw Error('Usage: npm run assets:prepare -- INPUT_DIRECTORY OUTPUT_DIRECTORY (must differ)');
+const [input, output, webBase = 'http://localhost:5173/performance-models/'] = process.argv.slice(2);
+const webRoot = new URL(webBase);
+if (!['http:', 'https:'].includes(webRoot.protocol) || webRoot.search || webRoot.hash) throw Error('Web asset base must be an HTTP(S) directory URL without query or fragment.');
+if (!webRoot.pathname.endsWith('/')) webRoot.pathname += '/';
+if (!input || !output || path.resolve(input) === path.resolve(output)) throw Error('Usage: npm run assets:prepare -- INPUT_DIRECTORY OUTPUT_DIRECTORY [WEB_ASSET_BASE_URL] (directories must differ)');
 await mkdir(output, { recursive: true });
 await Promise.all([MeshoptEncoder.ready, MeshoptDecoder.ready, MeshoptSimplifier.ready]);
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'draco3d.decoder': await draco3d.createDecoderModule(), 'meshopt.decoder': MeshoptDecoder, 'meshopt.encoder': MeshoptEncoder });
 const triangleCount = document => document.getRoot().listMeshes().reduce((total, mesh) => total + mesh.listPrimitives().reduce((sum, primitive) => sum + (primitive.getIndices()?.getCount() ?? primitive.getAttribute('POSITION')?.getCount() ?? 0) / 3, 0), 0);
 const report = [];
 const declarations = [];
-for (const name of (await readdir(input)).filter(name => /\.glb$/i.test(name)).sort()) {
+const webDeclarations = [];
+const names = (await readdir(input)).filter(name => /\.glb$/i.test(name)).sort();
+const stemFor = name => name.replace(/(?:\.(?:standard|preview|detail))?\.glb$/i, '');
+const stems = names.map(name => stemFor(name).toLowerCase());
+if (new Set(stems).size !== stems.length) throw Error('Input contains multiple models with the same variant stem; supply one source GLB per model.');
+for (const name of names) {
   console.log(`Preparing ${name}`);
   const source = await io.read(path.join(input, name));
   if (source.getRoot().listSkins().length || source.getRoot().listAnimations().length || source.getRoot().listMeshes().some(mesh => mesh.listPrimitives().some(primitive => primitive.listTargets().length))) throw Error(`${name}: animated, skinned, or morphing models require an authored LOD pipeline.`);
@@ -26,7 +34,7 @@ for (const name of (await readdir(input)).filter(name => /\.glb$/i.test(name)).s
   const bounds = getBounds(source.getRoot().getDefaultScene() ?? source.getRoot().listScenes()[0]);
   const originalTextures = source.getRoot().listTextures().map(texture => ({ size: texture.getSize(), bytes: texture.getImage()?.byteLength ?? 0 }));
   for (const extension of source.getRoot().listExtensionsUsed()) if (['KHR_draco_mesh_compression', 'EXT_meshopt_compression'].includes(extension.extensionName)) extension.dispose();
-  const stem = name.replace(/\.glb$/i, '');
+  const stem = stemFor(name);
   const record = { name, originalBytes: (await stat(path.join(input, name))).size, originalTriangles, originalTextures, levels: {} };
   for (const [level, target, resolution] of [['preview', 8000, 0], ['standard', 20000, 512], ['detail', 60000, 1024]]) {
     const doc = cloneDocument(source);
@@ -94,8 +102,12 @@ for (const name of (await readdir(input)).filter(name => /\.glb$/i.test(name)).s
     console.log(`  ${level}: ${triangles.toLocaleString()} triangles; ${(record.levels[level].bytes / 1024).toFixed(0)} KiB`);
   }
   const index = report.length, x = (index % 5) * 2, z = Math.floor(index / 5) * 2;
-  declarations.push(`"Model${index}/+${x}+1/+0+1/+${z}+1":"model: ${stem}.standard.glb; model-preview: ${stem}.preview.glb; model-detail: ${stem}.detail.glb; model-align: floor"`);
+  const modelFile = encodeURIComponent(`${stem}.standard.glb`);
+  const declaration = url => `"Model${index}/+${x}+1/+0+1/+${z}+1":"model: ${url}; model-align: floor"`;
+  declarations.push(declaration(modelFile));
+  webDeclarations.push(declaration(new URL(modelFile, webRoot).href));
   report.push(record);
   await writeFile(path.join(output, 'report.json'), JSON.stringify(report, null, 2) + '\n');
   await writeFile(path.join(output, 'performance.xyz'), declarations.join('\n') + '\n');
+  await writeFile(path.join(output, 'performance-web.xyz'), webDeclarations.join('\n') + '\n');
 }

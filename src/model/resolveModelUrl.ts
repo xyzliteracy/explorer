@@ -1,3 +1,6 @@
+/** Default runtime store for relative model and variant declarations. */
+export const DEFAULT_MODEL_ASSET_BASE = 'https://pub-70e24999b560412a8cf712bd468e82c2.r2.dev/';
+
 /** Validate declarations without assigning a storage location to relative paths. */
 export function validateModelSource(source: string): string {
   const value = source.trim();
@@ -15,10 +18,9 @@ export function validateModelSource(source: string): string {
   return value;
 }
 
-export function resolveModelUrl(source: string, base?: string): string {
+export function resolveModelUrl(source: string, base: string = DEFAULT_MODEL_ASSET_BASE): string {
   const value = validateModelSource(source);
   if (/^[a-z][a-z\d+.-]*:/i.test(value)) return new URL(value).href;
-  if (!base) throw Error('Relative model paths require an opened scene file. Open the .xyzdsl file containing this model, or use an absolute HTTP(S) GLB URL.');
   const root = new URL(base);
   const url = new URL(value, root);
   if (url.origin !== root.origin || !url.pathname.startsWith(root.pathname.endsWith('/') ? root.pathname : root.pathname + '/')) throw Error('Relative model paths must remain inside the scene directory.');

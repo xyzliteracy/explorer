@@ -7,6 +7,10 @@ for (const mode of ['web']) {
     page.on('response', response => { if (response.url().endsWith('.glb') && response.ok()) assets.push(response.url()); });
     await page.goto(`/tests/performance/index.html?mode=${mode}`);
     await page.waitForFunction(() => window.performanceTest?.snapshot(), { timeout: 10000 });
+    // The generated corpus must exercise convention lookup, not explicit LODs.
+    expect(await page.evaluate(() => window.performanceTest.full.renderNodes.every(node =>
+      node.model?.source && !node.model.previewSource && !node.model.detailSource,
+    ))).toBe(true);
     await expect.poll(() => page.evaluate(() => window.performanceTest?.snapshot()?.assets?.ready ?? 0), { timeout: 90000 }).toBeGreaterThanOrEqual(10);
     await page.waitForTimeout(1500);
     await expect.poll(() => new Set(assets.filter(url => url.includes('.preview.glb'))).size).toBe(10);

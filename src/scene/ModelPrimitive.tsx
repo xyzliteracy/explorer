@@ -78,7 +78,7 @@ export function StreamingModel({ node, tier, resolved, selected, onPrecisionScal
   // their existing error/upgrade behavior. The store shares requests across nodes.
   const inferredTarget = tier === 'preview' ? !model.previewSource : tier === 'detail' && !model.detailSource;
   const targetFailed = targetUrl === previewUrl ? preview?.error : target?.error;
-  const fallbackUrl = tier !== 'none' && inferredTarget && targetFailed ? resolve(model.source) : undefined;
+  const fallbackUrl = tier !== 'none' && inferredTarget && targetFailed ? resolve(variants.source) : undefined;
   const fallback = useModelAsset(fallbackUrl === targetUrl || fallbackUrl === previewUrl ? undefined : fallbackUrl, selected ? 2000 : 500);
   const asset = target?.value ? target : fallback?.value ? fallback : preview?.value ? preview : undefined;
   if (!asset?.value) {

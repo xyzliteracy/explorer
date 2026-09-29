@@ -37,6 +37,13 @@ const interval = setInterval(() => {
   clear: () => setScene({ ...full, nodes: [], renderNodes: [] }),
   restore: () => setScene(full),
   only: (index) => setScene({ ...full, nodes: [full.nodes[index]], renderNodes: [full.renderNodes[index]] }),
-  level: (level, index) => setScene({ ...full, renderNodes: full.renderNodes.filter((_, i) => index === undefined || i === index).map(node => ({ ...node, model: { ...node.model, source: node.model.source.replace('.standard.glb', `.${level}.glb`), previewSource: undefined, detailSource: undefined } })) }),
+  // Pin all slots when testing a single level so inference cannot upgrade it.
+  level: (level, index) => setScene({
+    ...full,
+    renderNodes: full.renderNodes.filter((_, i) => index === undefined || i === index).map(node => {
+      const source = node.model.source.replace('.standard.glb', `.${level}.glb`);
+      return { ...node, model: { ...node.model, source, previewSource: source, detailSource: source } };
+    }),
+  }),
   full,
 };

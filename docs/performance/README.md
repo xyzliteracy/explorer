@@ -12,10 +12,10 @@ npm run assets:prepare -- /path/to/original-glbs public/performance-models
 npm run dev
 ```
 
-The input directory is read-only. Output includes three independent GLBs per model, a `report.json`, and `performance.xyz`. The web renderer requires HTTP(S) URLs; use the acceptance page below or substitute hosted asset URLs into the scene.
+The input directory is read-only. Output includes three independent GLBs per model, a `report.json`, `performance.xyz`, and `performance-web.xyz`. Filenames are `<stem>.preview.glb`, `<stem>.standard.glb`, and `<stem>.detail.glb`. Both scenes declare only `model`, exercising automatic sibling resolution. Existing `.preview`, `.standard`, or `.detail` suffixes are removed from input stems; duplicate stems are rejected before processing. The web renderer resolves relative filenames against the default runtime model store (`https://pub-70e24999b560412a8cf712bd468e82c2.r2.dev/`). For locally generated assets, use the acceptance page below or the generated absolute localhost URLs in `performance-web.xyz`.
 
 ```text
-"Chair/+0+1/+0+1/+0+1":"model: chair.standard.glb; model-preview: chair.preview.glb; model-detail: chair.detail.glb; model-align: floor"
+"Chair/+0+1/+0+1/+0+1":"model: chair.standard.glb; model-align: floor"
 ```
 
 - **Preview:** target 8,000 triangles, no textures, recalculated flat normals.
@@ -27,11 +27,11 @@ The input directory is read-only. Output includes three independent GLBs per mod
 
 ### Pasting the test scene into the web editor
 
-`public/performance-models/performance.xyz` uses relative asset paths. For a Vite web app running at `http://localhost:5173`, paste the contents of `public/performance-models/performance-web.xyz` instead. This companion scene uses absolute HTTP URLs under `/performance-models/`; change the origin if your server runs on another port or host. It is a local test fixture, not a portable deployment URL.
+`public/performance-models/performance.xyz` uses relative asset paths. For a Vite web app running at `http://localhost:5173`, paste the contents of `public/performance-models/performance-web.xyz` instead. The preprocessor generates this companion scene on every run. Pass an optional third argument such as `http://127.0.0.1:5174/performance-models/` to set its asset base URL. By default it uses absolute HTTP URLs under `/performance-models/`; change the origin if your server runs on another port or host. It is a local test fixture, not a portable deployment URL.
 
 Do not insert Markdown escapes into DSL filenames: use `bed_lamp.preview.glb`, not `bed\_lamp.preview\.glb`. Assets must be served by the web server; a pasted filename does not grant the browser access to local disk.
 
-`model-preview` and `model-detail` are optional, inherit with a model declaration, and are cleared when its source is overridden. Existing single-GLB scenes still work within the mobile budget. Oversized legacy assets show an actionable placeholder rather than being retained at full quality. A missing or failed upgrade keeps the loaded preview.
+`model-preview` and `model-detail` are optional, inherit with a model declaration, and are cleared when its source is overridden. Unqualified `model: name.glb` declarations resolve to `name.standard.glb`; explicitly named variants keep their filenames. Oversized legacy assets show an actionable placeholder rather than being retained at full quality. A missing or failed upgrade keeps the loaded preview.
 
 ## Runtime policy
 
@@ -100,9 +100,9 @@ Run `npm run assets:inspect -- INPUT_DIRECTORY REPORT.json` before uploading ass
 A declaration such as `model: chair.glb` automatically attempts
 `chair.preview.glb` and `chair.detail.glb` at the corresponding visibility tiers.
 `model: chair.standard.glb` uses those same siblings, matching `assets:prepare`.
-The base `model` URL remains the standard asset. Query strings and fragments are
+An unqualified base `model` URL resolves to its `.standard.glb` sibling; explicitly named variants are preserved. Query strings and fragments are
 preserved. Explicit `model-preview` or `model-detail` values override inference
 for that tier, including inherited values. Inference happens after inheritance
 and URL resolution, before asset transport. Failed inferred variants fall back
-to the declared model; a loaded preview remains visible while it loads. Assets
+to the resolved base model; a loaded preview remains visible while it loads. Assets
 continue to obey the shared loading and memory budgets.

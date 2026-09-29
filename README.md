@@ -89,9 +89,11 @@ Manual spatial declarations can use `content-text`/`content-url` for simple valu
 
 Primitive dimensions are derived from the bounding box and use the same project-unit scale as paths (`1` = `1 m`, `1d` = `1 dm`, `1c` = `1 cm`, `1m` = `1 mm`). For example, a cone or cylinder uses X/Z as its footprint and Y as its height. Non-square footprints are rendered as scaled elliptical primitives so every primitive fills the declared bounding box. `box-radius` applies only to box geometry and is measured in project units; omitted or zero radius renders a sharp box, and the renderer clamps positive radii to half of the smallest box dimension. `puff` is intentionally a geometry modifier, not a material setting, because it changes the rendered cushion shape.
 
-GLB models can be imported with an absolute HTTP(S) URL. There is no default model store. Models default to `model-fit: contain` and `model-align: center`; `stretch` and `floor` are also supported. The declared box remains authoritative for layout, selection, collision, and room sizing. For example: `"+1+4/+2+4/+2+4" : "model: https://example.com/modern_chair.glb; model-fit: contain; model-align: floor; rotation: 5,10,5"`. Imported cameras, lights, animations, and model CSG operations are not currently enabled. The model host must allow browser CORS requests.
+GLB models can be imported with an absolute HTTP(S) URL or a relative filename. Relative declarations use the default runtime model store at `https://pub-70e24999b560412a8cf712bd468e82c2.r2.dev/`. An explicitly supplied scene asset base takes precedence; absolute URLs keep their own host. Models default to `model-fit: contain` and `model-align: center`; `stretch` and `floor` are also supported. The declared box remains authoritative for layout, selection, collision, and room sizing. For example: `"+1+4/+2+4/+2+4" : "model: https://example.com/modern_chair.glb; model-fit: contain; model-align: floor; rotation: 5,10,5"`. Imported cameras, lights, animations, and model CSG operations are not currently enabled. The model host must allow browser CORS requests.
 
 ## Automatic model variants
+
+For example, `model: side_shelves.glb` loads `https://pub-70e24999b560412a8cf712bd468e82c2.r2.dev/side_shelves.standard.glb`, with inferred siblings `side_shelves.preview.glb` and `side_shelves.detail.glb` in the same store. Unqualified filenames such as `side_shelves.glb` resolve to the `.standard.glb` sibling. Explicit `.standard.glb`, `.preview.glb`, and `.detail.glb` filenames are preserved; explicit `model-preview` and `model-detail` URLs are used exactly as declared. The runtime base is defined by `DEFAULT_MODEL_ASSET_BASE` in `src/model/resolveModelUrl.ts`; the preprocessor's optional web base only controls generated example URLs.
 
 Only `model` is required. The renderer automatically tries preview and detail GLB files in the same directory, using these filename conventions:
 
@@ -106,9 +108,9 @@ For example, this declaration discovers variants beside the declared URL as the 
 "Chair/+0+1/+0+1/+0+1" : "model: https://example.com/models/chair.standard.glb; model-align: floor"
 ```
 
-The declared `model` remains the standard asset; the resolver does not generate variant files. The `.standard.glb`, `.preview.glb`, and `.detail.glb` names match the output of `npm run assets:prepare`. URL query strings and fragments are preserved when deriving sibling URLs.
+The resolved `model` is the base asset; the resolver does not generate variant files. The `.standard.glb`, `.preview.glb`, and `.detail.glb` names match the output of `npm run assets:prepare`. URL query strings and fragments are preserved when deriving sibling URLs.
 
-Explicit `model-preview` and `model-detail` declarations override automatic lookup independently. Inherited variants also take precedence; overriding `model` clears inherited variants so new siblings are inferred from the replacement source. If an inferred variant fails to load, the renderer falls back to the declared `model`, retaining any loaded preview while it loads. Explicit variant failures retain the existing preview/error behavior. All assets remain subject to the loading and memory budgets.
+Explicit `model-preview` and `model-detail` declarations override automatic lookup independently. Inherited variants also take precedence; overriding `model` clears inherited variants so new siblings are inferred from the replacement source. If an inferred variant fails to load, the renderer falls back to the resolved base asset (normally `.standard.glb`), retaining any loaded preview while it loads. Explicit variant failures retain the existing preview/error behavior. All assets remain subject to the loading and memory budgets.
 
 See [the model performance guide](docs/performance/README.md) for asset preparation and streaming details.
 
