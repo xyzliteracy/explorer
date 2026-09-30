@@ -124,7 +124,7 @@ export function SceneRoot({ document: spatialDocument, selectedNodeId, onSelectN
       <color attach="background" args={['#151820']} />
       <PerspectiveCamera ref={cameraRef} makeDefault position={DEFAULT_CAMERA_POSITION} fov={45} near={clips.near} far={clips.far} />
       <Lighting />
-      <XyzCornerGrid {...roomDimensions} />
+      {editorMode && <XyzCornerGrid {...roomDimensions} />}
       {spatialDocument.csgExpressions.map((expression) => (
         <CsgPrimitive
           key={expression.id}

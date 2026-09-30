@@ -1,3 +1,4 @@
+import { EditorLayout } from './ui/EditorLayout';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { appendProspectiveObjectDeclaration, canEditDeclarationLine, moveDeclarationPath, resizeDeclarationPath, rotateDeclarationPath, updateDeclarationProperty } from './xyzdsl/editXyzDslSource';
 import type { AxisName } from './xyzdsl/types';
@@ -824,7 +825,7 @@ export default function App() {
     : linearStepChoice;
 
   return (
-    <main className={`app-shell app-shell--${appMode}`}>
+    <EditorLayout editing={appMode === 'editor'}>
       <SceneRoot
         document={document}
         selectedNodeId={selectedSceneNodeId}
@@ -895,6 +896,6 @@ export default function App() {
         onLinearStepChoiceChange={setLinearStepChoice}
         onRotationStepChange={setRotationStep}
       />
-    </main>
+    </EditorLayout>
   );
 }
