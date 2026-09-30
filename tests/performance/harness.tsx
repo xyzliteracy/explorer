@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { _roots } from '@react-three/fiber';
 import { SceneRoot } from '../../src/scene/SceneRoot';
+import { SelectedModelAssetStore } from '../../src/performance/SelectedModelAssetStore';
 import { ModelAssetStore } from '../../src/performance/ModelAssetStore';
 import { createSpatialDocument } from '../../src/model/createSpatialDocument';
 const source = (await (await fetch('/performance-models/performance.xyz')).text()).replace(/(model(?:-preview|-detail)?:\s*)([^;"\s]+\.glb)/g, (_, prefix, file) => prefix + location.origin + '/performance-models/' + file);
@@ -9,15 +10,18 @@ const full = createSpatialDocument(source);
 if (full.diagnostics.length) throw Error(JSON.stringify(full.diagnostics));
 const noop = () => {};
 let assetStore;
+let originalStore;
 const acquire = ModelAssetStore.prototype.acquire;
-ModelAssetStore.prototype.acquire = function (...args) { assetStore = this; return acquire.apply(this, args); };
+ModelAssetStore.prototype.acquire = function (...args) { if (this instanceof SelectedModelAssetStore) originalStore = this; else assetStore = this; return acquire.apply(this, args); };
 let setScene;
+let selectNode;
 let frames = 0;
 let requests = [];
 function App() {
   const [scene, change] = useState(full); setScene = change;
+  const [selectedNodeId, select] = useState<string>(); selectNode = select;
   const [cameraMode, setCameraMode] = useState<'orbit' | 'pov'>('orbit');
-  return <SceneRoot document={scene} cameraMode={cameraMode} onCameraModeChange={setCameraMode} editorMode={false} selectedNodeCanEdit={false} editorLinearStep={.1} editorRotationStep={15} linearStepChoice="auto" onLinearStepChoiceChange={noop} onRotationStepChange={noop} onMoveNode={noop} onResizeNode={noop} onRotateNode={noop} onCreateNode={noop}/>;
+  return <SceneRoot document={scene} selectedNodeId={selectedNodeId} onSelectNode={select} cameraMode={cameraMode} onCameraModeChange={setCameraMode} editorMode={false} selectedNodeCanEdit={false} editorLinearStep={.1} editorRotationStep={15} linearStepChoice="auto" onLinearStepChoiceChange={noop} onRotationStepChange={noop} onMoveNode={noop} onResizeNode={noop} onRotateNode={noop} onCreateNode={noop}/>;
 }
 createRoot(document.getElementById('root')!).render(<App/>);
 const state = () => [..._roots.values()][0]?.store.getState();
@@ -31,7 +35,7 @@ const interval = setInterval(() => {
 (window as any).performanceTest = {
   snapshot: () => {
     const root = state();
-    return root ? { assets: assetStore?.status(), camera: root.camera.position.toArray(), controls: root.controls?.target?.toArray(), frames, calls: root.gl.info.render.calls, triangles: root.gl.info.render.triangles, textures: root.gl.info.memory.textures, geometries: root.gl.info.memory.geometries, dpr: root.viewport.dpr, frameloop: root.frameloop, requests } : null;
+    return root ? { assets: assetStore?.status(), original: originalStore?.status(), camera: root.camera.position.toArray(), controls: root.controls?.target?.toArray(), frames, calls: root.gl.info.render.calls, triangles: root.gl.info.render.triangles, textures: root.gl.info.memory.textures, geometries: root.gl.info.memory.geometries, dpr: root.viewport.dpr, frameloop: root.frameloop, requests } : null;
   },
   camera: (position, target) => { const root = state(); root.camera.position.set(...position); root.camera.lookAt(...target); if (root.controls) { root.controls.target.set(...target); root.controls.update(); } root.invalidate(); },
   clear: () => setScene({ ...full, nodes: [], renderNodes: [] }),
@@ -45,5 +49,6 @@ const interval = setInterval(() => {
       return { ...node, model: { ...node.model, source, previewSource: source, detailSource: source } };
     }),
   }),
+  select: (index) => selectNode(index === undefined ? undefined : full.renderNodes[index].id),
   full,
 };

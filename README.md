@@ -112,6 +112,10 @@ The resolved `model` is the base asset; the resolver does not generate variant f
 
 Explicit `model-preview` and `model-detail` declarations override automatic lookup independently. Inherited variants also take precedence; overriding `model` clears inherited variants so new siblings are inferred from the replacement source. If an inferred variant fails to load, the renderer falls back to the resolved base asset (normally `.standard.glb`), retaining any loaded preview while it loads. Explicit variant failures retain the existing preview/error behavior. All assets remain subject to the loading and memory budgets.
 
+Selecting a model's bounding box loads its original `<stem>.glb` above the prepared variants, even in Low or Balanced quality. Only the selected model can use this original tier. Prepared variants remain visible while it loads or if it fails. Deselecting or selecting another object releases the previous original immediately, without the prepared-asset cache delay. An in-flight decode may finish, but its obsolete result is disposed before the next original starts. Upload original GLBs alongside prepared siblings to enable this tier.
+
+The selection-only original is outside the prepared-model triangle and memory limits, so selecting a large original can increase memory use and reduce frame rate. The scene's normal prepared assets retain their existing budgets.
+
 See [the model performance guide](docs/performance/README.md) for asset preparation and streaming details.
 
 ## Material declaration reference

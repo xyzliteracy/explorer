@@ -14,3 +14,8 @@ export function resolveModelVariants<T extends { source?: string; previewSource?
     detailSource: model.detailSource ?? modelVariantSource(model.source, 'detail'),
   };
 }
+
+/** Original source convention, independent of explicit prepared-tier overrides. */
+export function originalModelSource(source: string): string {
+  return source.trim().replace(/\.(?:standard|preview|detail)(?=\.glb(?:[?#]|$))/i, '');
+}

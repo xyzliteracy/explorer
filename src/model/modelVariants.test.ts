@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { modelVariantSource, resolveModelVariants } from './modelVariants';
+import { modelVariantSource, originalModelSource, resolveModelVariants } from './modelVariants';
 import { createSpatialDocument } from './createSpatialDocument';
 
 describe('automatic model variants', () => {
@@ -29,3 +29,9 @@ describe('automatic model variants', () => {
     expect(model.source).toBe('table.glb');
   });
 });
+
+it.each(['chair.glb', 'chair.standard.glb', 'chair.preview.glb', 'chair.detail.glb'])(
+  'resolves the original of %s', source => {
+    expect(originalModelSource('https://models.example/' + source + '?v=1#mesh')).toBe('https://models.example/chair.glb?v=1#mesh');
+  },
+);

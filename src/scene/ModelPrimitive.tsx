@@ -1,13 +1,13 @@
 import { Component, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ErrorInfo, type ReactNode } from 'react';
 import { Html } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
-import { useModelAsset } from '../performance/ModelRuntime';
+import { useModelAsset, useSelectedModelAsset } from '../performance/ModelRuntime';
 import { requestedModelTier, modelScreenPixels, modelTierSource, type ModelTier } from '../performance/modelVisibility';
 import type { ThreeEvent } from '@react-three/fiber';
 import { SkeletonUtils } from 'three-stdlib';
 import { Box3, Vector3, Color, type Material, type Mesh, type Object3D, type Group } from 'three';
 import type { SpatialNode } from '../model/SpatialNode';
-import { resolveModelVariants } from '../model/modelVariants';
+import { originalModelSource, resolveModelVariants } from '../model/modelVariants';
 import { resolveModelUrl } from '../model/resolveModelUrl';
 import { modelFitTransformFromBounds, renderedModelPrecisionScale } from './modelFit';
 import { shouldSelectFromClick } from './selectionClick';
@@ -80,7 +80,8 @@ export function StreamingModel({ node, tier, resolved, selected, onPrecisionScal
   const targetFailed = targetUrl === previewUrl ? preview?.error : target?.error;
   const fallbackUrl = tier !== 'none' && inferredTarget && targetFailed ? resolve(variants.source) : undefined;
   const fallback = useModelAsset(fallbackUrl === targetUrl || fallbackUrl === previewUrl ? undefined : fallbackUrl, selected ? 2000 : 500);
-  const asset = target?.value ? target : fallback?.value ? fallback : preview?.value ? preview : undefined;
+  const original = useSelectedModelAsset(selected && model.source ? resolve(originalModelSource(model.source)) : undefined);
+  const asset = original?.value ? original : target?.value ? target : fallback?.value ? fallback : preview?.value ? preview : undefined;
   if (!asset?.value) {
     const error = fallbackUrl ? fallback?.error : target?.error ?? preview?.error;
     return <><ModelBox color={error ? '#efad44' : '#60a5fa'} />{error && <Html center><span role="status" title={error.message} style={{ display: 'block', width: 160, padding: 6, background: '#171c26', color: '#ffcf85', fontSize: 12 }}>{error.message.includes('budget') ? 'Use an optimized model for this device' : 'Model could not be loaded'}</span></Html>}</>;

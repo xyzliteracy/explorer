@@ -84,3 +84,30 @@ test('quality choice persists and limits pixel ratio', async ({ page }) => {
   await expect(page.getByRole('combobox', { name: 'Rendering quality' })).toHaveValue('low');
   await expect.poll(() => page.evaluate(() => window.performanceTest.snapshot()?.dpr)).toBe(1);
 });
+
+test('only the selected bounding box loads an original, released on deselection', async ({ page }) => {
+  const originals: string[] = [];
+  await page.route('**/performance-models/*.glb', async route => {
+    const name = new URL(route.request().url()).pathname.split('/').pop()!;
+    if (/\.(preview|standard|detail)\.glb$/.test(name)) return route.continue();
+    originals.push(name);
+    // Serve the source corpus without adding originals to generated fixtures.
+    await route.fulfill({ path: `../xyz-scene/glb_models/${name}`, contentType: 'model/gltf-binary' });
+  });
+  await page.goto('/tests/performance/index.html?mode=web');
+  await expect.poll(() => page.evaluate(() => window.performanceTest?.snapshot()?.assets?.ready ?? 0), { timeout: 90000 }).toBeGreaterThanOrEqual(10);
+  expect(originals).toEqual([]);
+  await page.getByRole('combobox', { name: 'Rendering quality' }).selectOption('low');
+  await page.evaluate(() => window.performanceTest.select(0));
+  await expect.poll(() => page.evaluate(() => window.performanceTest.snapshot().original?.ready), { timeout: 60000 }).toBe(1);
+  expect(originals).toEqual(['bed_lamp.glb']);
+  expect(await page.evaluate(() => window.performanceTest.snapshot().original.triangles)).toBeGreaterThan(600000);
+  await page.evaluate(() => window.performanceTest.select(1));
+  await expect.poll(() => originals.length).toBe(2);
+  await expect.poll(() => page.evaluate(() => window.performanceTest.snapshot().original?.ready), { timeout: 60000 }).toBe(1);
+  expect(originals).toEqual(['bed_lamp.glb', 'ceiling_lamp.glb']);
+  expect(await page.evaluate(() => window.performanceTest.snapshot().original.total)).toBe(1);
+  await page.evaluate(() => window.performanceTest.select());
+  await expect.poll(() => page.evaluate(() => window.performanceTest.snapshot().original.bytes)).toBe(0);
+  expect(await page.evaluate(() => window.performanceTest.snapshot().original.total)).toBe(0);
+});
