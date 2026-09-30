@@ -1,3 +1,4 @@
+import { useMobileViewport } from './ui/useMobileViewport';
 import { EditorLayout } from './ui/EditorLayout';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { appendProspectiveObjectDeclaration, canEditDeclarationLine, moveDeclarationPath, resizeDeclarationPath, rotateDeclarationPath, updateDeclarationProperty } from './xyzdsl/editXyzDslSource';
@@ -159,9 +160,17 @@ export default function App() {
   const [authoringSource, setAuthoringSource] = useState(INITIAL_XYZDSL);
   const [remoteBaselineAppliedToEditor, setRemoteBaselineAppliedToEditor] = useState('');
   const latestRemoteBaselineRef = useRef('');
-  const [appMode, setAppMode] = useState<'viewer' | 'editor'>('viewer');
+  const isMobileViewport = useMobileViewport();
+  const [requestedAppMode, setAppMode] = useState<'viewer' | 'editor'>('viewer');
+  const appMode = isMobileViewport ? 'viewer' : requestedAppMode;
   const [cameraMode, setCameraMode] = useState<CameraMode>('orbit');
   const [drawerOpen, setDrawerOpen] = useState(false);
+  useEffect(() => {
+    if (isMobileViewport) {
+      setAppMode('viewer');
+      setDrawerOpen(false);
+    }
+  }, [isMobileViewport]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | undefined>();
   const [selectedLeafNodeId, setSelectedLeafNodeId] = useState<string | undefined>();
   const [selectedSceneHighlightNodeId, setSelectedSceneHighlightNodeId] = useState<string | undefined>();
@@ -729,12 +738,13 @@ export default function App() {
   }, []);
 
   const handleModeChange = useCallback((mode: 'viewer' | 'editor') => {
+    if (isMobileViewport && mode === 'editor') return;
     setAppMode(mode);
 
     if (mode === 'editor') {
       setDrawerOpen(true);
     }
-  }, []);
+  }, [isMobileViewport]);
 
   const handleSelectNode = useCallback((id: string | undefined) => {
     if (id === undefined) {
@@ -846,6 +856,7 @@ export default function App() {
       />
       <XyzDslDrawer
         appMode={appMode}
+        allowModeSwitch={!isMobileViewport}
         document={document}
         isOpen={drawerOpen}
         source={authoringSource}

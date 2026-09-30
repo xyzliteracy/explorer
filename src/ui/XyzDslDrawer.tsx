@@ -90,6 +90,7 @@ function renderAuthoringStatus(
 
 interface XyzDslDrawerProps {
   appMode: 'viewer' | 'editor';
+  allowModeSwitch?: boolean;
   document: SpatialDocument;
   isOpen: boolean;
   source: string;
@@ -142,6 +143,7 @@ interface XyzDslDrawerProps {
 }
 
 export function XyzDslDrawer({
+  allowModeSwitch = true,
   appMode,
   document,
   isOpen,
@@ -204,7 +206,7 @@ export function XyzDslDrawer({
   ];
   return (
     <aside className={`xyzdsl-drawer xyzdsl-drawer--${appMode} ${isOpen ? 'is-open' : ''}`}>
-      <div className="mode-controls" aria-label="Application mode">
+      {allowModeSwitch && <div className="mode-controls" aria-label="Application mode">
         <button
           className="mode-toggle"
           type="button"
@@ -214,7 +216,7 @@ export function XyzDslDrawer({
           {isEditorMode ? 'Viewer mode' : 'Editor mode'}
         </button>
 
-      </div>
+      </div>}
 
       {isEditorMode && isOpen ? (
         <div className="drawer-panel">
