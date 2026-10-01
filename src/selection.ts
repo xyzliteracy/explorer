@@ -131,7 +131,10 @@ export function selectionTargetForNodeId(nodes: SpatialNode[], id?: string): Spa
     return undefined;
   }
 
-  return [...path].reverse().find(isEditableContainerAnchor) ?? path.at(-1);
+  const leaf = path.at(-1);
+  if (leaf?.metadata?.viewPoint) return leaf;
+
+  return [...path].reverse().find(isEditableContainerAnchor) ?? leaf;
 }
 
 export { lineNumberForNode };

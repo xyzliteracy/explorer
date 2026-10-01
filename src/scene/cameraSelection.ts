@@ -82,6 +82,7 @@ export function cameraNodeForSelection(
   if (!expression) {
     const hierarchyNode = findNodeById(spatialDocument.nodes, selectedNodeId);
     if (!hierarchyNode) return undefined;
+    if (hierarchyNode.metadata?.viewPoint) return hierarchyNode;
 
     const ids = descendantIds(hierarchyNode);
     const renderedDescendants = spatialDocument.renderNodes.filter((node) => ids.has(node.id));

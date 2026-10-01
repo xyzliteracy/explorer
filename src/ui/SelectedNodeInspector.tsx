@@ -141,7 +141,7 @@ export function SelectedNodeInspector({
       </div>
 
       <div className="inspector-facts">
-        <span>{node.renderable ? (node.model?.source ? 'model' : node.geometry.kind) : 'group'}</span>
+        <span>{node.metadata?.viewPoint ? 'view point' : node.renderable ? (node.model?.source ? 'model' : node.geometry.kind) : 'group'}</span>
         <span>line {lineNumber ?? 'unknown'}</span>
         {!canEdit ? <span>read only</span> : null}
       </div>
@@ -227,7 +227,7 @@ export function SelectedNodeInspector({
       {childNodes.length > 0 ? (
         <section className="inspector-child-list" aria-label="Child selections">
           <strong>Children</strong>
-          <ul>{childNodes.map((child) => <li key={child.id}><button type="button" onClick={() => onSelectNode(child.id)}>{displayName(child)}</button><span>{child.renderable ? child.geometry.kind : 'group'}</span></li>)}</ul>
+          <ul>{childNodes.map((child) => <li key={child.id}><button type="button" onClick={() => onSelectNode(child.id)}>{displayName(child)}</button><span>{child.metadata?.viewPoint ? 'view point' : child.renderable ? child.geometry.kind : 'group'}</span></li>)}</ul>
         </section>
       ) : null}
     </section>

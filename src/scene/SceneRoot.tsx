@@ -15,6 +15,7 @@ import { ModelPrimitive } from './ModelPrimitive';
 import { nodesForRoomSizing } from './roomSizing';
 import { cameraClipPlanes, cameraSceneScale } from './cameraScale';
 import { ViewPointControls } from './ViewPointControls';
+import { ViewPointMarker } from './ViewPointMarker';
 import { viewPoints } from './viewPoints';
 import type { OrbitControls as OrbitControlType } from 'three-stdlib';
 import type { PerspectiveCamera as ThreePerspectiveCamera } from 'three';
@@ -125,7 +126,10 @@ export function SceneRoot({ document: spatialDocument, selectedNodeId, onSelectN
           <SpatialPrimitive key={node.id} node={node} onSelect={onSelectNode} selectionEnabled={cameraMode === 'orbit'} />
         )
       ))}
-      {selectedNode && !point && !selectedNode.metadata?.viewPoint ? <SelectionBounds node={selectedNode} /> : null}
+      {editorMode && !point && points.map(node => (
+        <ViewPointMarker key={node.id} node={node} selected={node.id === selectedNodeId} onSelect={onSelectNode} />
+      ))}
+      {selectedNode && !point && (editorMode || !selectedNode.metadata?.viewPoint) ? <SelectionBounds node={selectedNode} /> : null}
       {cameraMode === 'orbit' ? <OrbitControls ref={orbitRef} makeDefault target={orbitTarget} maxPolarAngle={Math.PI} /> : null}
       <ViewPointControls point={point} orbitTarget={tour?.orbitTarget} onTraverse={traverse} onExit={exitTour} />
       <CameraClipController nodes={cameraSizingNodes} scale={sceneScale} />

@@ -92,7 +92,7 @@ function TreeItem({
         >
           <strong>{displayName(node)}</strong>
           <span>
-            {node.renderable ? node.geometry.kind : 'group'} · {node.box.width} × {node.box.height} × {node.box.depth} at ({node.box.x},{' '}
+            {node.metadata?.viewPoint ? 'view point' : node.renderable ? node.geometry.kind : 'group'} · {node.box.width} × {node.box.height} × {node.box.depth} at ({node.box.x},{' '}
             {node.box.y}, {node.box.z})
           </span>
           {node.renderable ? (
@@ -105,7 +105,7 @@ function TreeItem({
 
         <div className="xyzdsl-tree-badges" aria-label="Spatial node metadata">
           {lineNumber ? <em>line {lineNumber}</em> : null}
-          {node.renderable ? null : <em>container</em>}
+          {node.renderable || node.metadata?.viewPoint ? null : <em>container</em>}
           {reference ? <em>ref {reference}</em> : null}
           {node.geometry.operation ? <em>operation {node.geometry.operation}</em> : null}
           {node.unionGroupId ? <em>{node.unionGroupId}</em> : null}
