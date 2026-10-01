@@ -11,7 +11,7 @@ npm run dev
 
 ## Camera navigation
 
-The camera defaults to orbit; drag to orbit and scroll/pinch to zoom. There is no camera type selector.
+Desktop and Editor mode default to orbit; drag to orbit and scroll/pinch to zoom. There is no camera type selector.
 
 Add invisible **traversable view points** to offer a fixed-position tour, especially on mobile:
 
@@ -24,7 +24,7 @@ The camera sits at the center of the marker box (the first example is `(2, 5, 8)
 
 In **Editor** mode, view points appear as cyan translucent boxes with an arrow showing their initial viewing direction (negative local Z). Ctrl/Command-click a marker to select it, or select it in the Definition tree. The usual Move, Resize, and Rotate controls and shortcuts edit its XYZDSL declaration; moving or resizing the box changes its camera center, and rotating changes its initial heading. Selected markers show the usual yellow selection bounds. These authoring helpers disappear outside Editor mode and during tours, and never contribute collision surfaces or room bounds.
 
-When markers exist, **Start tour** enters the first point. Points follow declaration order. The camera stays fixed at each point: mouse dragging or touch swiping pivots horizontally and vertically. Use the **Previous** and **Next** overlay buttons to traverse on all devices; desktop also supports Down/Page Down for next and Up/Page Up for previous when not typing in a control. Traversal stops at either end. **Exit tour** or Escape restores the previous orbit pose. Editing/scene selection is available in orbit; changing the document exits the tour.
+When markers exist, **Start tour** enters the first point. Points follow declaration order. The camera stays fixed at each point: mouse dragging or touch swiping pivots horizontally and vertically. Use the **Previous** and **Next** overlay buttons to traverse on all devices; desktop also supports Down/Page Down for next and Up/Page Up for previous when not typing in a control. Traversal loops in both directions: Next from the last point returns to the first, and Previous from the first returns to the last. On desktop, **Exit tour** or Escape restores the previous orbit pose. Editing/scene selection is available in orbit; changing the document exits a desktop tour. On mobile, scenes with view points automatically open at the first point, with no exit action or instruction bar. Left/right overlay buttons traverse the points; swiping looks around. A single-point tour hides the redundant traversal buttons. Mobile Editor mode and scenes without view points use orbit.
 
 In **Editor** mode, hold Ctrl (Windows/Linux) or Command (macOS) while scrolling over the scene to rotate the selected object; unmodified scrolling continues to zoom the orbit camera. Ctrl/Command with `+` or `-` resizes all axes. Ctrl/Command with `X`, `Y`, or `Z` increases only that axis, and adding Shift decreases it. Press `[` to toggle the linear transform step between fine (1 cm) and coarse (1 m), or `]` to toggle the rotation angle between fine (1°) and coarse (15°). The Properties dropdowns and all transform shortcuts share these settings.
 
@@ -123,7 +123,7 @@ The resolved `model` is the base asset; the resolver does not generate variant f
 
 Explicit `model-preview` and `model-detail` declarations override automatic lookup independently. Inherited variants also take precedence; overriding `model` clears inherited variants so new siblings are inferred from the replacement source. If an inferred variant fails to load, the renderer falls back to the resolved base asset (normally `.standard.glb`), retaining any loaded preview while it loads. Explicit variant failures retain the existing preview/error behavior. All assets remain subject to the loading and memory budgets.
 
-Selecting a model's bounding box loads its original `<stem>.glb` above the prepared variants, even in Low or Balanced quality. Only the selected model can use this original tier. Prepared variants remain visible while it loads or if it fails. Deselecting or selecting another object releases the previous original immediately, without the prepared-asset cache delay. An in-flight decode may finish, but its obsolete result is disposed before the next original starts. Upload original GLBs alongside prepared siblings to enable this tier.
+Selecting a model's bounding box loads its original `<stem>.glb` above the prepared variants, even on devices using a lower automatic detail ceiling. Only the selected model can use this original tier. Prepared variants remain visible while it loads or if it fails. Deselecting or selecting another object releases the previous original immediately, without the prepared-asset cache delay. An in-flight decode may finish, but its obsolete result is disposed before the next original starts. Upload original GLBs alongside prepared siblings to enable this tier.
 
 The selection-only original is outside the prepared-model triangle and memory limits, so selecting a large original can increase memory use and reduce frame rate. The scene's normal prepared assets retain their existing budgets.
 
@@ -149,3 +149,5 @@ Spatial primitives intentionally expose only the basic scalar properties needed 
 ```
 
 See [docs/implementation-plan.md](docs/implementation-plan.md) for architecture details and the feature roadmap.
+
+Rendering quality is automatic; there is no viewer quality selector or saved user override. XYZDSL authors supply model variants with `model`, `model-preview`, and `model-detail` (or inferred siblings). The renderer chooses visibility tiers within device limits and caps pixel density for constrained devices. This keeps scene content in XYZDSL while adapting rendering cost to the device.

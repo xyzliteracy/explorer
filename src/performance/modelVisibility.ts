@@ -34,7 +34,7 @@ export function modelTierSource(model: NonNullable<SpatialNode['model']>, tier: 
   return model.source;
 }
 
-/** Selection pins residency but still respects the user's fidelity ceiling. */
+/** Selection pins residency but still respects the device fidelity ceiling. */
 export function requestedModelTier(pixels: number, previous: ModelTier, selected: boolean, ceiling: ModelTier = 'detail'): ModelTier {
   const levels: ModelTier[] = ['none', 'preview', 'standard', 'detail'];
   const desired = selected ? 'detail' : chooseModelTier(pixels, previous);

@@ -5,7 +5,7 @@ import type { SpatialNode } from '../model/SpatialNode';
 import type { OrbitControls } from 'three-stdlib';
 
 export function ViewPointControls({ point, orbitTarget, onTraverse, onExit }: {
-  point?: SpatialNode; orbitTarget?: [number, number, number]; onTraverse: (delta: number) => void; onExit: () => void;
+  point?: SpatialNode; orbitTarget?: [number, number, number]; onTraverse: (delta: number) => void; onExit?: () => void;
 }) {
   const { camera, gl, invalidate, get } = useThree();
   const saved = useRef<{ position: Vector3; quaternion: Quaternion; target?: Vector3 } | undefined>(undefined);
@@ -60,7 +60,7 @@ export function ViewPointControls({ point, orbitTarget, onTraverse, onExit }: {
       if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.repeat) return;
       if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Escape'].includes(event.code)) {
         event.preventDefault();
-        if (event.code === 'Escape') onExit();
+        if (event.code === 'Escape') onExit?.();
         else onTraverse(['ArrowDown', 'PageDown'].includes(event.code) ? 1 : -1);
       }
     };

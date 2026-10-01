@@ -1607,3 +1607,35 @@ button {
   .app-shell--editor .drawer-panel { border-width: 0; }
   .app-shell--editor .object-workspace { grid-template-rows: minmax(5rem, 0.75fr) minmax(0, 1.25fr); }
 }
+
+.view-point-overlays {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: max(0.75rem, env(safe-area-inset-left));
+  padding-right: max(0.75rem, env(safe-area-inset-right));
+  pointer-events: none;
+  z-index: 9;
+}
+.view-point-overlays button {
+  pointer-events: auto;
+  width: 48px;
+  height: 48px;
+  border: 1px solid rgb(255 255 255 / 30%);
+  border-radius: 50%;
+  background: rgb(13 17 23 / 65%);
+  color: #fff;
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.view-point-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
