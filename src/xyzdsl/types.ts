@@ -79,6 +79,7 @@ export interface XyzDslReferenceSpec {
 }
 
 export interface SpatialObject {
+  viewPoint?: boolean;
   id: string;
   source: string;
   path: XyzDslPathSpec;

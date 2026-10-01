@@ -13,7 +13,7 @@ import {
   sceneHighlightIdForNode,
   selectionTargetForNodeId,
 } from './selection';
-import { SceneRoot, type CameraMode } from './scene/SceneRoot';
+import { SceneRoot } from './scene/SceneRoot';
 import { fetchPublicKeyTransactions, fetchTipHeight, normalizeEndpoint } from './transactions/publicKeyTransactions';
 import { createPublicKeyShareUrl, readPublicKeyFromUrl } from './transactions/publicKeyShareUrl';
 import { composeTransactionSources } from './transactions/composeTransactionSources';
@@ -163,7 +163,6 @@ export default function App() {
   const isMobileViewport = useMobileViewport();
   const [requestedAppMode, setAppMode] = useState<'viewer' | 'editor'>('viewer');
   const appMode = isMobileViewport ? 'viewer' : requestedAppMode;
-  const [cameraMode, setCameraMode] = useState<CameraMode>('orbit');
   const [drawerOpen, setDrawerOpen] = useState(false);
   useEffect(() => {
     if (isMobileViewport) {
@@ -840,8 +839,6 @@ export default function App() {
         document={document}
         selectedNodeId={selectedSceneNodeId}
         onSelectNode={handleSelectNode}
-        cameraMode={cameraMode}
-        onCameraModeChange={setCameraMode}
         editorMode={appMode === 'editor'}
         selectedNodeCanEdit={selectedNodeCanEdit}
         editorLinearStep={editorLinearStep}

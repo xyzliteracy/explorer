@@ -15,6 +15,7 @@ import type {
 
 const SUPPORTED_OBJECT_PROPERTIES = new Set([
   ...SUPPORTED_MATERIAL_KEYS,
+  'view-point',
   'geometry',
   'box-radius',
   'puff',
@@ -36,6 +37,7 @@ const SUPPORTED_OBJECT_PROPERTIES = new Set([
 ]);
 
 export interface XyzDslObjectPropertiesSpec {
+  viewPoint?: boolean;
   material: XyzDslMaterialSpec;
   geometry: XyzDslGeometrySpec;
   transform: XyzDslTransformSpec;
@@ -59,7 +61,11 @@ export function parseObjectProperties(source: string): XyzDslObjectPropertiesSpe
       ({ property }) => `Ignoring unsupported object property "${property}".`,
     );
 
+  const marker = declarations.filter(({ property }) => property === 'view-point').at(-1);
+  if (marker && !['true', 'false'].includes(marker.value)) diagnostics.push('view-point must be true or false.');
+
   return {
+    viewPoint: marker?.value === 'true',
     material,
     geometry,
     transform,

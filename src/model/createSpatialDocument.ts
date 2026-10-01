@@ -92,7 +92,7 @@ export function createSpatialDocument(source: string): SpatialDocument {
             (segment, index) => candidate.namespace[index] === segment,
           ),
       );
-      const localTransform = object.renderable
+      const localTransform = object.renderable || object.viewPoint
         ? transformFromBox(object.box, object.transform)
         : {
             ...anchorTransformFromBox(object.box, object.transform),
@@ -115,9 +115,10 @@ export function createSpatialDocument(source: string): SpatialDocument {
         bounds: boundsFromTransformedBox(object.box, worldTransform),
         namespacePath: object.namespacePath,
         parentNamespacePath: object.parentNamespacePath,
-        renderable: object.renderable,
+        renderable: object.renderable && !object.viewPoint,
         children: [],
         metadata: {
+          viewPoint: Boolean(object.viewPoint && object.renderable),
           lineNumber: object.lineNumber,
           declarationOnly: object.declarationOnly,
           container: hasChildren,

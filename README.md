@@ -11,9 +11,18 @@ npm run dev
 
 ## Camera navigation
 
-The viewer supports both orbit and first-person **POV** cameras. Choose **POV** in the lower-right camera controls, then click the viewport to capture the pointer. Use WASD or the arrow keys to move, E/Space and Q to move vertically, hold Z for precision movement, hold Shift for a speed boost, and press Escape to release the pointer. The movement and near-clipping scales adapt to the smallest selected geometry so centimetre- and millimetre-scale interiors remain navigable.
+The camera defaults to orbit; drag to orbit and scroll/pinch to zoom. There is no camera type selector.
 
-POV navigation defaults to **No clip**, which is useful for entering enclosed or subtracted composite geometry. Enable **Collision** when surface blocking is preferred. The speed control changes the scale-aware movement rate, **Focus selection** moves to a safe inspection pose outside the selected object, and the center crosshair selects geometry while the pointer is captured.
+Add invisible **traversable view points** to offer a fixed-position tour, especially on mobile:
+
+```xyzdsl
+"+1+2/+3+4/+5+6":"view-point: true"
+"+2+1/+1+1/+2+1":"view-point: true; rotation: 0,90,0"
+```
+
+The camera sits at the center of the marker box (the first example is `(2, 5, 8)`), using the usual world transforms for nested markers. `rotation` sets its initial direction in degrees; without rotation it looks along negative Z with Y up. Markers occupy no visible geometry, collision surfaces, or room bounds. `view-point: false` behaves as ordinary geometry; invalid values produce a diagnostic. This property marks individual concrete leaf instances, and is not inherited by children or namespace defaults. Reference copies of marked instances retain the marker.
+
+When markers exist, **Start tour** enters the first point. Points follow declaration order. The camera stays fixed at each point: desktop mouse dragging pivots horizontally and vertically; on touch, sideways dragging pivots horizontally, while a deliberate vertical swipe (at least 60 pixels, predominantly vertical) traverses—up for next, down for previous. **Look up** and **Look down** buttons tilt the view by 15° on all devices. **Previous** and **Next** buttons work on all devices; desktop also supports Down/Page Down for next and Up/Page Up for previous when not typing in a control. Traversal stops at either end. **Exit tour** or Escape restores the previous orbit pose. Editing/scene selection is available in orbit; changing the document exits the tour.
 
 In **Editor** mode, hold Ctrl (Windows/Linux) or Command (macOS) while scrolling over the scene to rotate the selected object; unmodified scrolling continues to zoom the orbit camera. Ctrl/Command with `+` or `-` resizes all axes. Ctrl/Command with `X`, `Y`, or `Z` increases only that axis, and adding Shift decreases it. Press `[` to toggle the linear transform step between fine (1 cm) and coarse (1 m), or `]` to toggle the rotation angle between fine (1°) and coarse (15°). The Properties dropdowns and all transform shortcuts share these settings.
 

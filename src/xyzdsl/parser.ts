@@ -51,6 +51,7 @@ export function parseXyzDslDeclaration(line: string, lineNumber = 1): ParseResul
         reference: properties.reference,
         content: properties.content,
         model: properties.model,
+        viewPoint: properties.viewPoint,
         declarationOnly: path.isDeclarationOnly,
         lineNumber,
       },

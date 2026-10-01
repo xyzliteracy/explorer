@@ -14,25 +14,21 @@ import { SpatialPrimitive } from './SpatialPrimitive';
 import { ModelPrimitive } from './ModelPrimitive';
 import { nodesForRoomSizing } from './roomSizing';
 import { cameraClipPlanes, cameraSceneScale } from './cameraScale';
-import { inspectionPose } from './cameraPlacement';
-import { PovControls } from './PovControls';
-import { Vector3, type PerspectiveCamera as ThreePerspectiveCamera } from 'three';
+import { ViewPointControls } from './ViewPointControls';
+import { viewPoints } from './viewPoints';
+import type { OrbitControls as OrbitControlType } from 'three-stdlib';
+import type { PerspectiveCamera as ThreePerspectiveCamera } from 'three';
 import { cameraNodeForSelection } from './cameraSelection';
 import { CameraClipController } from './CameraClipController';
-import { povCollisionRadius } from './povNavigation';
 import { EditorSelectionControls } from './EditorSelectionControls';
 import { SelectionBounds } from './SelectionBounds';
 import type { AxisName } from '../xyzdsl/types';
 import type { LinearStepChoice, RotationStep } from '../ui/SelectedNodeInspector';
 
-export type CameraMode = 'orbit' | 'pov';
-
 interface SceneRootProps {
   document: SpatialDocument;
   selectedNodeId?: string;
   onSelectNode?: (id: string | undefined) => void;
-  cameraMode: CameraMode;
-  onCameraModeChange: (mode: CameraMode) => void;
   editorMode: boolean;
   selectedNodeCanEdit: boolean;
   editorLinearStep: number;
@@ -49,7 +45,7 @@ interface SceneRootProps {
 const DEFAULT_ORBIT_TARGET: [number, number, number] = [0.6, 0.5, 0.4];
 const DEFAULT_CAMERA_POSITION: [number, number, number] = [1.4, 1.1, 1.8];
 
-export function SceneRoot({ document: spatialDocument, selectedNodeId, onSelectNode, cameraMode, onCameraModeChange, editorMode, selectedNodeCanEdit, editorLinearStep, editorRotationStep, linearStepChoice, onLinearStepChoiceChange, onRotationStepChange, onMoveNode, onResizeNode, onRotateNode, onCreateNode }: SceneRootProps) {
+export function SceneRoot({ document: spatialDocument, selectedNodeId, onSelectNode, editorMode, selectedNodeCanEdit, editorLinearStep, editorRotationStep, linearStepChoice, onLinearStepChoiceChange, onRotationStepChange, onMoveNode, onResizeNode, onRotateNode, onCreateNode }: SceneRootProps) {
   const [quality, setQuality] = useState<RenderQuality>(initialQuality);
   const [assetStatus, setAssetStatus] = useState<AssetStatus>();
   useEffect(() => { try { localStorage.setItem(QUALITY_KEY, quality); } catch { /* Optional persistence. */ } }, [quality]);
@@ -81,33 +77,21 @@ export function SceneRoot({ document: spatialDocument, selectedNodeId, onSelectN
   );
   const sceneScale = cameraSceneScale(cameraSizingNodes, selectedNode, DEFAULT_CAMERA_POSITION);
   const clips = cameraClipPlanes(sceneScale, cameraSizingNodes, DEFAULT_CAMERA_POSITION);
-  const [speedMultiplier, setSpeedMultiplier] = useState(1);
-  const [collision, setCollision] = useState(false);
-  const [pointerLocked, setPointerLocked] = useState(false);
-  const [focusRequest, setFocusRequest] = useState(0);
-  const [resetRequest, setResetRequest] = useState(0);
+  const points = useMemo(() => viewPoints(spatialDocument), [spatialDocument]);
+  const orbitRef = useRef<OrbitControlType>(null);
+  const [tour, setTour] = useState<{ document: SpatialDocument; index: number; orbitTarget?: [number, number, number] }>();
+  const pointIndex = tour?.document === spatialDocument && points.length ? tour.index : undefined;
+  const point = pointIndex === undefined ? undefined : points[pointIndex];
+  const cameraMode = point ? 'pov' : 'orbit';
+  const [pitchRequest, setPitchRequest] = useState<{ delta: number }>();
+  const exitTour = useCallback(() => setTour(undefined), []);
+  const traverse = useCallback((delta: number) => setTour(current => current && ({ ...current, index: Math.max(0, Math.min(points.length - 1, current.index + delta)) })), [points.length]);
   const orbitTarget = useMemo(() => {
     return selectedNode?.transform.position ?? DEFAULT_ORBIT_TARGET;
   }, [selectedNode]);
 
   const invalidateRef = useRef<() => void>(() => {});
   const cameraRef = useRef<ThreePerspectiveCamera>(null);
-  const handledFocusRequest = useRef(0);
-  useEffect(() => {
-    if (!selectedNode || !cameraRef.current || focusRequest === handledFocusRequest.current) return;
-    handledFocusRequest.current = focusRequest;
-    const forward = cameraRef.current.getWorldDirection(new Vector3()).toArray() as [number, number, number];
-    const pose = inspectionPose(selectedNode, forward);
-    cameraRef.current.position.set(...pose.position);
-    cameraRef.current.lookAt(...pose.target);
-    invalidateRef.current();
-  }, [focusRequest, selectedNode]);
-  useEffect(() => {
-    if (!cameraRef.current || resetRequest === 0) return;
-    cameraRef.current.position.set(...DEFAULT_CAMERA_POSITION);
-    cameraRef.current.lookAt(...DEFAULT_ORBIT_TARGET);
-    invalidateRef.current();
-  }, [resetRequest]);
 
   return (
     <div className="scene-viewport">
@@ -142,16 +126,9 @@ export function SceneRoot({ document: spatialDocument, selectedNodeId, onSelectN
           <SpatialPrimitive key={node.id} node={node} onSelect={onSelectNode} selectionEnabled={cameraMode === 'orbit'} />
         )
       ))}
-      {selectedNode ? <SelectionBounds node={selectedNode} /> : null}
-      {cameraMode === 'orbit' ? <OrbitControls makeDefault target={orbitTarget} maxPolarAngle={Math.PI} /> : null}
-      <PovControls
-        active={cameraMode === 'pov'}
-        collision={collision}
-        collisionRadius={povCollisionRadius(sceneScale)}
-        speed={sceneScale * 1.5 * speedMultiplier}
-        onLockChange={setPointerLocked}
-        onSelectNode={onSelectNode}
-      />
+      {selectedNode && !point && !selectedNode.metadata?.viewPoint ? <SelectionBounds node={selectedNode} /> : null}
+      {cameraMode === 'orbit' ? <OrbitControls ref={orbitRef} makeDefault target={orbitTarget} maxPolarAngle={Math.PI} /> : null}
+      <ViewPointControls point={point} orbitTarget={tour?.orbitTarget} pitchRequest={pitchRequest} onTraverse={traverse} onExit={exitTour} />
       <CameraClipController nodes={cameraSizingNodes} scale={sceneScale} />
       <EditorSelectionControls
         active={editorMode && cameraMode === 'orbit'}
@@ -173,19 +150,21 @@ export function SceneRoot({ document: spatialDocument, selectedNodeId, onSelectN
         <option value="low">Low</option><option value="balanced">Balanced</option><option value="high">High</option>
       </select></label>
       {import.meta.env.DEV && assetStatus && <small aria-label="Model resource usage">{assetStatus.ready}/{assetStatus.total} models · {(assetStatus.bytes / 1048576).toFixed(1)} MiB estimated · {assetStatus.loading} loading</small>}
-      <div className="camera-mode-switch" role="group" aria-label="Camera mode">
-        <button type="button" aria-pressed={cameraMode === 'orbit'} onClick={() => onCameraModeChange('orbit')}>Orbit</button>
-        <button type="button" aria-pressed={cameraMode === 'pov'} onClick={() => onCameraModeChange('pov')}>POV</button>
-      </div>
-      {cameraMode === 'pov' ? <>
-        <p>{pointerLocked ? 'WASD move · E/Q up/down · Z precision · Shift boost · Esc release' : 'Click the viewport to look around'}</p>
-        <label>Speed <input aria-label="POV movement speed" type="range" min="0.1" max="4" step="0.1" value={speedMultiplier} onChange={(event) => setSpeedMultiplier(Number(event.target.value))} /> <span>{(sceneScale * 1.5 * speedMultiplier).toPrecision(2)} u/s</span></label>
-        <button className="camera-option" type="button" aria-pressed={collision} onClick={() => setCollision((value) => !value)}>{collision ? 'Collision on' : 'No clip'}</button>
-        <button className="camera-option" type="button" disabled={!selectedNode} onClick={() => setFocusRequest((value) => value + 1)}>Focus selection</button>
-        <button className="camera-option" type="button" onClick={() => setResetRequest((value) => value + 1)}>Reset camera</button>
-      </> : <p>{editorMode ? 'Ctrl/Cmd + wheel rotate · +/− resize all · X/Y/Z resize axis · Shift decreases · [ step fine/coarse · ] angle fine/coarse · ' : ''}Cmd/Ctrl + click to select</p>}
+      {point ? <>
+        <div role="group" aria-label="View point traversal">
+          <button type="button" disabled={pointIndex === 0} onClick={() => traverse(-1)}>Previous</button>
+          <span role="status">View point {(pointIndex ?? 0) + 1} / {points.length}</span>
+          <button type="button" disabled={pointIndex === points.length - 1} onClick={() => traverse(1)}>Next</button>
+          <button type="button" onClick={() => setPitchRequest({ delta: Math.PI / 12 })}>Look up</button>
+          <button type="button" onClick={() => setPitchRequest({ delta: -Math.PI / 12 })}>Look down</button>
+          <button type="button" onClick={exitTour}>Exit tour</button>
+        </div>
+        <p>Drag to look · ↑/↓ previous/next · Esc exit. Touch: drag sideways to look, swipe up for next, down for previous.</p>
+      </> : <>
+        {points.length > 0 && <button type="button" onClick={() => setTour({ document: spatialDocument, index: 0, orbitTarget: orbitRef.current?.target.toArray() as [number, number, number] | undefined })}>Start tour · {points.length} view points</button>}
+        <p>{editorMode ? 'Ctrl/Cmd + wheel rotate · +/− resize all · X/Y/Z resize axis · Shift decreases · [ step fine/coarse · ] angle fine/coarse · ' : ''}Cmd/Ctrl + click to select</p>
+      </>}
     </section>
-    {cameraMode === 'pov' && pointerLocked ? <div className="pov-crosshair" aria-hidden="true">+</div> : null}
     </div>
   );
 }
