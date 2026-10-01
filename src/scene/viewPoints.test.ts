@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createSpatialDocument } from '../model/createSpatialDocument';
 import { nodesForRoomSizing } from './roomSizing';
-import { swipeTraversal, viewPoints } from './viewPoints';
+import { viewPoints } from './viewPoints';
 
 describe('view point markers', () => {
   it('keeps markers invisible and out of room bounds and CSG', () => {
@@ -36,15 +36,5 @@ describe('view point markers', () => {
 "Copy/+10+10/+0+10/+0+10":"ref: Tour/"`);
     expect(viewPoints(document)).toHaveLength(1);
     expect(viewPoints(document)[0].transform.position).toEqual([12, 1, 1]);
-  });
-});
-
-describe('touch traversal', () => {
-  it('requires a deliberate predominantly vertical swipe', () => {
-    expect(swipeTraversal(10, -70)).toBe(1);
-    expect(swipeTraversal(10, 70)).toBe(-1);
-    expect(swipeTraversal(0, 59)).toBe(0);
-    expect(swipeTraversal(60, 70)).toBe(0);
-    expect(swipeTraversal(100, 0)).toBe(0);
   });
 });

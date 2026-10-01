@@ -3,10 +3,9 @@ import { useThree } from '@react-three/fiber';
 import { Euler, MathUtils, Quaternion, Vector3 } from 'three';
 import type { SpatialNode } from '../model/SpatialNode';
 import type { OrbitControls } from 'three-stdlib';
-import { swipeTraversal } from './viewPoints';
 
-export function ViewPointControls({ point, orbitTarget, pitchRequest, onTraverse, onExit }: {
-  point?: SpatialNode; orbitTarget?: [number, number, number]; pitchRequest?: { delta: number }; onTraverse: (delta: number) => void; onExit: () => void;
+export function ViewPointControls({ point, orbitTarget, onTraverse, onExit }: {
+  point?: SpatialNode; orbitTarget?: [number, number, number]; onTraverse: (delta: number) => void; onExit: () => void;
 }) {
   const { camera, gl, invalidate, get } = useThree();
   const saved = useRef<{ position: Vector3; quaternion: Quaternion; target?: Vector3 } | undefined>(undefined);
@@ -33,18 +32,17 @@ export function ViewPointControls({ point, orbitTarget, pitchRequest, onTraverse
     const oldTouchAction = element.style.touchAction;
     element.style.touchAction = 'none';
     const angles = new Euler().setFromQuaternion(camera.quaternion, 'YXZ');
-    let drag: { id: number; x: number; y: number; lastX: number; lastY: number; touch: boolean } | undefined;
+    let drag: { id: number; lastX: number; lastY: number } | undefined;
     const down = (event: PointerEvent) => {
       if (drag || event.button !== 0 || !event.isPrimary) return;
-      drag = { id: event.pointerId, x: event.clientX, y: event.clientY, lastX: event.clientX, lastY: event.clientY, touch: event.pointerType === 'touch' };
+      drag = { id: event.pointerId, lastX: event.clientX, lastY: event.clientY };
       element.setPointerCapture(event.pointerId);
     };
     const move = (event: PointerEvent) => {
       if (!drag || drag.id !== event.pointerId) return;
       angles.setFromQuaternion(camera.quaternion, 'YXZ');
       angles.y -= (event.clientX - drag.lastX) * 0.005;
-      // Touch vertical motion is reserved for traversal; mouse can pivot in both axes.
-      if (!drag.touch) angles.x = MathUtils.clamp(angles.x - (event.clientY - drag.lastY) * 0.005, -Math.PI / 2 + .01, Math.PI / 2 - .01);
+      angles.x = MathUtils.clamp(angles.x - (event.clientY - drag.lastY) * 0.005, -Math.PI / 2 + .01, Math.PI / 2 - .01);
       camera.rotation.set(angles.x, angles.y, 0, 'YXZ');
       drag.lastX = event.clientX;
       drag.lastY = event.clientY;
@@ -52,10 +50,8 @@ export function ViewPointControls({ point, orbitTarget, pitchRequest, onTraverse
     };
     const up = (event: PointerEvent) => {
       if (!drag || drag.id !== event.pointerId) return;
-      const delta = drag.touch ? swipeTraversal(event.clientX - drag.x, event.clientY - drag.y) : 0;
       drag = undefined;
       if (element.hasPointerCapture(event.pointerId)) element.releasePointerCapture(event.pointerId);
-      if (delta) onTraverse(delta);
     };
     const cancel = () => { drag = undefined; };
     const key = (event: KeyboardEvent) => {
@@ -85,12 +81,5 @@ export function ViewPointControls({ point, orbitTarget, pitchRequest, onTraverse
       if (drag && element.hasPointerCapture(drag.id)) element.releasePointerCapture(drag.id);
     };
   }, [point, camera, gl, invalidate, onTraverse, onExit, get, orbitTarget]);
-  useEffect(() => {
-    if (!point || !pitchRequest) return;
-    const angles = new Euler().setFromQuaternion(camera.quaternion, 'YXZ');
-    angles.x = MathUtils.clamp(angles.x + pitchRequest.delta, -Math.PI / 2 + .01, Math.PI / 2 - .01);
-    camera.rotation.set(angles.x, angles.y, 0, 'YXZ');
-    invalidate();
-  }, [pitchRequest, camera, invalidate]);
   return null;
 }

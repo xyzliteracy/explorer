@@ -83,7 +83,6 @@ export function SceneRoot({ document: spatialDocument, selectedNodeId, onSelectN
   const pointIndex = tour?.document === spatialDocument && points.length ? tour.index : undefined;
   const point = pointIndex === undefined ? undefined : points[pointIndex];
   const cameraMode = point ? 'pov' : 'orbit';
-  const [pitchRequest, setPitchRequest] = useState<{ delta: number }>();
   const exitTour = useCallback(() => setTour(undefined), []);
   const traverse = useCallback((delta: number) => setTour(current => current && ({ ...current, index: Math.max(0, Math.min(points.length - 1, current.index + delta)) })), [points.length]);
   const orbitTarget = useMemo(() => {
@@ -128,7 +127,7 @@ export function SceneRoot({ document: spatialDocument, selectedNodeId, onSelectN
       ))}
       {selectedNode && !point && !selectedNode.metadata?.viewPoint ? <SelectionBounds node={selectedNode} /> : null}
       {cameraMode === 'orbit' ? <OrbitControls ref={orbitRef} makeDefault target={orbitTarget} maxPolarAngle={Math.PI} /> : null}
-      <ViewPointControls point={point} orbitTarget={tour?.orbitTarget} pitchRequest={pitchRequest} onTraverse={traverse} onExit={exitTour} />
+      <ViewPointControls point={point} orbitTarget={tour?.orbitTarget} onTraverse={traverse} onExit={exitTour} />
       <CameraClipController nodes={cameraSizingNodes} scale={sceneScale} />
       <EditorSelectionControls
         active={editorMode && cameraMode === 'orbit'}
@@ -155,11 +154,9 @@ export function SceneRoot({ document: spatialDocument, selectedNodeId, onSelectN
           <button type="button" disabled={pointIndex === 0} onClick={() => traverse(-1)}>Previous</button>
           <span role="status">View point {(pointIndex ?? 0) + 1} / {points.length}</span>
           <button type="button" disabled={pointIndex === points.length - 1} onClick={() => traverse(1)}>Next</button>
-          <button type="button" onClick={() => setPitchRequest({ delta: Math.PI / 12 })}>Look up</button>
-          <button type="button" onClick={() => setPitchRequest({ delta: -Math.PI / 12 })}>Look down</button>
           <button type="button" onClick={exitTour}>Exit tour</button>
         </div>
-        <p>Drag to look · ↑/↓ previous/next · Esc exit. Touch: drag sideways to look, swipe up for next, down for previous.</p>
+        <p>Drag or swipe to look around · Previous/Next to traverse · ↑/↓ previous/next · Esc exit.</p>
       </> : <>
         {points.length > 0 && <button type="button" onClick={() => setTour({ document: spatialDocument, index: 0, orbitTarget: orbitRef.current?.target.toArray() as [number, number, number] | undefined })}>Start tour · {points.length} view points</button>}
         <p>{editorMode ? 'Ctrl/Cmd + wheel rotate · +/− resize all · X/Y/Z resize axis · Shift decreases · [ step fine/coarse · ] angle fine/coarse · ' : ''}Cmd/Ctrl + click to select</p>
