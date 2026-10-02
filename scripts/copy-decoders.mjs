@@ -7,3 +7,6 @@ for (const [directory, files] of Object.entries({ draco: ['draco_wasm_wrapper.js
 
 const basisPath = 'public/decoders/basis/basis_transcoder.js';
 await writeFile(basisPath, cspSafeBasis(await readFile(basisPath, 'utf8')));
+
+await mkdir('public/fonts', { recursive: true });
+await copyFile('node_modules/three/examples/fonts/ttf/kenpixel.ttf', 'public/fonts/kenpixel.ttf');

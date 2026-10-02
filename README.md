@@ -151,3 +151,20 @@ Spatial primitives intentionally expose only the basic scalar properties needed 
 See [docs/implementation-plan.md](docs/implementation-plan.md) for architecture details and the feature roadmap.
 
 Rendering quality is automatic; there is no viewer quality selector or saved user override. XYZDSL authors supply model variants with `model`, `model-preview`, and `model-detail` (or inferred siblings). The renderer chooses visibility tiers within device limits and caps pixel density for constrained devices. This keeps scene content in XYZDSL while adapting rendering cost to the device.
+
+## Shared web rendering core
+
+Rendering, XYZDSL parsing, spatial models, camera navigation, and model resource
+management now come from the standalone sibling `xyz-viewer` repository through
+`@xyz/viewer` (`file:../xyz-viewer`). Keep that checkout beside this repository,
+then run `npm install`. Compatibility modules preserve existing internal imports.
+Core rendering tests now live in the viewer repository; run `npm test` in both.
+The explorer owns transaction fetching/composition and its remote model store
+configuration in `src/scene/remoteModelUrl.ts`.
+
+
+`npm run core:update` fast-forwards the sibling core checkout and refreshes its
+locked dependencies and this application's install. Specification changes are
+implemented/tested in `xyzspec/xyzdsl`; no parser or renderer copies belong here.
+The Pages workflow checks out that core alongside explorer on every deployment.
+Already published web assets acquire updates when rebuilt and redeployed.

@@ -41,3 +41,5 @@ next-env.d.ts
 /public/decoders/
 /public/performance-models/
 /public/performance-originals/
+
+/public/fonts/

@@ -15,7 +15,8 @@
     "assets:prepare": "node scripts/prepare-models.mjs",
     "test:performance": "playwright test",
     "test:decoders": "node --test scripts/basis-csp.test.mjs",
-    "assets:inspect": "node scripts/inspect-models.mjs"
+    "assets:inspect": "node scripts/inspect-models.mjs",
+    "core:update": "node scripts/update-core.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",
@@ -25,7 +26,8 @@
     "three": "^0.181.2",
     "three-bvh-csg": "^0.0.17",
     "three-mesh-bvh": "^0.8.3",
-    "three-stdlib": "^2.36.1"
+    "three-stdlib": "^2.36.1",
+    "@xyz/viewer": "file:../xyz-viewer"
   },
   "devDependencies": {
     "@gltf-transform/core": "^4.5.0",

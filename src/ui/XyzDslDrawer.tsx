@@ -1,3 +1,4 @@
+import { WorkspacePanel } from '@xyz/viewer/ui/WorkspacePanel';
 import type { ReactNode } from 'react';
 import type { SpatialDocument } from '../model/SpatialDocument';
 import type { SpatialNode } from '../model/SpatialNode';
@@ -195,7 +196,6 @@ export function XyzDslDrawer({
   onLinearStepChoiceChange,
   onRotationStepChange,
 }: XyzDslDrawerProps) {
-  const isEditorMode = appMode === 'editor';
   const [activeTab, setActiveTab] = usePersistentState<DrawerTab>('xyzdsl-drawer-active-tab', 'objects');
   const problemCount = document.diagnostics.length + rejectedTransactions.length;
   const tabs: { id: DrawerTab; label: string; count?: number }[] = [
@@ -205,36 +205,7 @@ export function XyzDslDrawer({
     { id: 'problems', label: 'Problems', count: problemCount },
   ];
   return (
-    <aside className={`xyzdsl-drawer xyzdsl-drawer--${appMode} ${isOpen ? 'is-open' : ''}`}>
-      {allowModeSwitch && <div className="mode-controls" aria-label="Application mode">
-        <button
-          className="mode-toggle"
-          type="button"
-          aria-pressed={isEditorMode}
-          onClick={() => onModeChange(isEditorMode ? 'viewer' : 'editor')}
-        >
-          {isEditorMode ? 'Viewer mode' : 'Editor mode'}
-        </button>
-
-      </div>}
-
-      {isEditorMode && isOpen ? (
-        <div className="drawer-panel">
-          <header className="drawer-titlebar">
-            <strong>xyzSpec</strong>
-            <span>Workspace</span>
-            <button className="drawer-close-button" type="button" aria-label="Close workspace and return to viewer mode" title="Close workspace" onClick={() => onModeChange('viewer')}>×</button>
-          </header>
-
-          <nav className="drawer-tabs" aria-label="Workspace panels">
-            {tabs.map((tab) => (
-              <button key={tab.id} type="button" aria-selected={activeTab === tab.id} role="tab" onClick={() => setActiveTab(tab.id)}>
-                {tab.label}{tab.count ? <span>{tab.count}</span> : null}
-              </button>
-            ))}
-          </nav>
-
-          <div className="drawer-content" role="tabpanel">
+    <WorkspacePanel mode={appMode} open={isOpen} allowModeSwitch={allowModeSwitch} onModeChange={onModeChange} title="xyzSpec" tabs={tabs} activeTab={activeTab} onTabChange={tab => setActiveTab(tab as DrawerTab)}>
           {activeTab === 'objects' ? (
             <div className="object-workspace">
               <XyzDslTreeView document={document} selectedNodeId={selectedNodeId} onSelectNode={onSelectNode} />
@@ -347,9 +318,6 @@ export function XyzDslDrawer({
             </details>
           ) : null}
           </div> : null}
-          </div>
-        </div>
-      ) : null}
-    </aside>
+    </WorkspacePanel>
   );
 }
