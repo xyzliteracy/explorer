@@ -29,6 +29,19 @@ import type { LinearStepChoice, RotationStep } from './ui/SelectedNodeInspector'
 const INITIAL_XYZDSL = `"Pap/+2+109d/+100c+300c/+10c+397c":""
 
 "Pap/Ceiling/+0+109d/+300c+1c/+0+397c":"color: white;"
+"Pap/Plaster/+0+638c/+290c+5c/+0+397c":"color: white;"
+"Pap/PlasterCut/+5d+538c/+29d+5c/+5d+297c":"operation: subtraction"
+"Pap/Inner1/+10d+198c/+29d+5c/+9d+217c":"color: white;"
+"Pap/Inner1Cut/+15d+10d/+29d+5c/+15d+10d":"operation: subtraction;"
+"Pap/Inner2/+34d+198c/+29d+5c/+9d+217c":"color: white;"
+"Pap/Inner2Cut/+389c+1/+29d+5c/+15d+1":"operation: subtraction;"
+
+"Pap/FloralLights/+183c+34c/+232c+671m/+193c+301m":"model: lepapayer/floral_lights.glb; rotation: 0, 0, 0"
+"Pap/TriadLights/+421c+47c/+24d+591m/+193c+301m":"model: lepapayer/abstract_lights.glb; rotation: 0, 0, 0"
+
+
+
+
 "Pap/FrontWall/+0+109d/+0+300c/+0+1c":"color: white;"
 "Pap/BackWall/+0+109d/+0+300c/+397c+1c":"color: white;"
 "Pap/LeftWall/+0+1c/+0+300c/+0+397c":"color: white;"
