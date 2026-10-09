@@ -54,3 +54,4 @@
 "Pap/DiningStool1/+3035m+6d/+0+9d/+0+5d" : "model: lepapayer/dining_stool.glb; rotation: 0, 90, 0"
 "Pap/DiningStool2/+3035m+6d/+0+9d/+7d+5d" : "model: lepapayer/dining_stool.glb; rotation: 0, 90, 0"
 "Pap/DiningStool3/+3035m+6d/+0+9d/+13d+5d" : "model: lepapayer/dining_stool.glb; rotation: 0, 90, 0"
+"Pap/CookingHub/+5252m+57c/+81c+1d/+4c+6d" : "model: lepapayer/cooking_hub.glb; model-align: floor"
