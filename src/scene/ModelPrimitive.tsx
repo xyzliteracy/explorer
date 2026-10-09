@@ -2,12 +2,13 @@ import { Component, Suspense, useCallback, useEffect, useMemo, useRef, useState,
 import { Html } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import { useModelAsset, useSelectedModelAsset } from '../performance/ModelRuntime';
-import { cameraFacesModel, requestedModelTier, modelScreenPixels, modelTierSource, type ModelTier } from '../performance/modelVisibility';
+import { requestedModelTier, requestedTourModelTier, modelScreenPixels, modelTierSource, type ModelTier } from '../performance/modelVisibility';
 import type { ThreeEvent } from '@react-three/fiber';
 import { SkeletonUtils } from 'three-stdlib';
 import { Box3, Vector3, Color, type Material, type Mesh, type Object3D, type Group } from 'three';
 import type { SpatialNode } from '../model/SpatialNode';
 import { originalModelSource, resolveModelVariants } from '../model/modelVariants';
+import { TOUR_DWELL_MS, useTourModelFocus } from '../performance/TourModelFocus';
 import { useAssetResolver } from '../assets';
 import { modelFitTransformFromBounds, renderedModelPrecisionScale } from './modelFit';
 import { shouldSelectFromClick } from './selectionClick';
@@ -65,7 +66,7 @@ export function ModelObject({ scene, fit, align, node, targetScale, onPrecisionS
   return <group scale={fitted.scale}><group position={fitted.position}><primitive object={imported.scene} dispose={null} /></group></group>;
 }
 
-export function StreamingModel({ node, tier, resolved, selected, onPrecisionScaleChange }: { node: SpatialNode; tier: ModelTier; resolved: boolean; selected: boolean; onPrecisionScaleChange?: (value: number | undefined) => void }) {
+export function StreamingModel({ node, tier, resolved, selected, tourOriginal = false, tourMode = false, onPrecisionScaleChange }: { tourOriginal?: boolean; tourMode?: boolean; node: SpatialNode; tier: ModelTier; resolved: boolean; selected: boolean; onPrecisionScaleChange?: (value: number | undefined) => void }) {
   const resolveModelUrl = useAssetResolver();
   const model = node.model!;
   const variants = resolveModelVariants(model);
@@ -81,7 +82,7 @@ export function StreamingModel({ node, tier, resolved, selected, onPrecisionScal
   const targetFailed = targetUrl === previewUrl ? preview?.error : target?.error;
   const fallbackUrl = tier !== 'none' && inferredTarget && targetFailed ? resolve(variants.source) : undefined;
   const fallback = useModelAsset(fallbackUrl === targetUrl || fallbackUrl === previewUrl ? undefined : fallbackUrl, selected ? 2000 : 500);
-  const original = useSelectedModelAsset(selected && model.source ? resolve(originalModelSource(model.source)) : undefined);
+  const original = useSelectedModelAsset((tourMode ? tourOriginal : selected) && model.source ? resolve(originalModelSource(model.source)) : undefined);
   const asset = original?.value ? original : target?.value ? target : fallback?.value ? fallback : preview?.value ? preview : undefined;
   if (!asset?.value) {
     const error = fallbackUrl ? fallback?.error : target?.error ?? preview?.error;
@@ -96,18 +97,29 @@ export function ModelPrimitive({ node, onSelect, selectionEnabled = true, onPrec
   const { position, rotation, scale } = node.transform;
   const group = useRef<Group>(null);
   const [tier, setTier] = useState<ModelTier>('none');
+  const tourFocus = useTourModelFocus(node.id, group, tourMode);
+  const pendingTier = useRef<ModelTier>('none');
   const unloadTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  useEffect(() => () => clearTimeout(unloadTimer.current), []);
+  useEffect(() => {
+    clearTimeout(unloadTimer.current);
+    unloadTimer.current = undefined;
+    return () => clearTimeout(unloadTimer.current);
+  }, [tourMode, maxTier, selected, model.source]);
   useFrame(({ camera, size }) => {
     if (!group.current) return;
     group.current.updateWorldMatrix(true, false);
-    const next = requestedModelTier(modelScreenPixels(camera, group.current.matrixWorld, size.height), tier, selected, maxTier, tourMode && cameraFacesModel(camera, group.current.matrixWorld));
-    if (next === 'none' && tier !== 'none') {
-      // A timer also expires when demand rendering is idle outside the view.
+    const pixels = modelScreenPixels(camera, group.current.matrixWorld, size.height);
+    const next = tourMode
+      ? requestedTourModelTier(pixels, tier, tourFocus.focused, tourFocus.sustained, maxTier === 'preview')
+      : requestedModelTier(pixels, tier, selected, maxTier);
+    const levels: ModelTier[] = ['none', 'preview', 'standard', 'detail'];
+    const degrading = levels.indexOf(next) < levels.indexOf(tier);
+    if (degrading && (tourMode || next === 'none')) {
+      pendingTier.current = next;
       if (unloadTimer.current === undefined) unloadTimer.current = setTimeout(() => {
         unloadTimer.current = undefined;
-        setTier('none');
-      }, 750);
+        setTier(pendingTier.current);
+      }, tourMode ? TOUR_DWELL_MS : 750);
     } else {
       clearTimeout(unloadTimer.current);
       unloadTimer.current = undefined;
@@ -121,7 +133,7 @@ export function ModelPrimitive({ node, onSelect, selectionEnabled = true, onPrec
   function handleClick(event: ThreeEvent<MouseEvent>) { event.stopPropagation(); if (shouldSelectFromClick(selectionEnabled, event)) onSelect?.(node.id); }
   return <group ref={group} position={position} rotation={rotation} scale={scale} onClick={handleClick} userData={{ spatialNodeId: node.id, model: model.source }}>
     <ModelErrorBoundary key={`${model.source}:${model.previewSource}:${model.detailSource}:${model.fit}:${model.align}`}>
-      <Suspense fallback={<ModelBox color="#60a5fa" />}><StreamingModel node={node} tier={tier} resolved={resolved} selected={selected} onPrecisionScaleChange={handlePrecisionScaleChange} /></Suspense>
+      <Suspense fallback={<ModelBox color="#60a5fa" />}><StreamingModel node={node} tier={tier} resolved={resolved} selected={selected} tourOriginal={tourFocus.original && maxTier !== 'preview'} tourMode={tourMode} onPrecisionScaleChange={handlePrecisionScaleChange} /></Suspense>
     </ModelErrorBoundary>
     <mesh userData={{ povCollisionIgnored: true }}>
       <boxGeometry />

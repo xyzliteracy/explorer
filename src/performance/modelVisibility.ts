@@ -26,14 +26,17 @@ const gazeDirection = new Vector3();
 const hit = new Vector3();
 
 /** Test the forward ray against the fitted boundary in model-local space. */
-export function cameraFacesModel(camera: Camera, worldMatrix: Matrix4): boolean {
+export function cameraModelDistance(camera: Camera, worldMatrix: Matrix4): number {
   camera.updateMatrixWorld();
-  if (worldMatrix.determinant() === 0) return false;
+  if (worldMatrix.determinant() === 0) return Infinity;
   camera.getWorldPosition(gaze.origin);
   camera.getWorldDirection(gazeDirection);
   gaze.direction.copy(gazeDirection);
   gaze.applyMatrix4(inverseWorld.copy(worldMatrix).invert());
-  return gaze.intersectBox(box, hit) !== null;
+  if (!gaze.intersectBox(box, hit)) return Infinity;
+  hit.applyMatrix4(worldMatrix);
+  camera.getWorldPosition(center);
+  return center.distanceTo(hit);
 }
 
 export type ModelTier = 'none' | 'preview' | 'standard' | 'detail';
@@ -57,4 +60,17 @@ export function requestedModelTier(pixels: number, previous: ModelTier, selected
   // Standard is the textured baseline; previews remain loading/budget fallbacks.
   const desired = selected || (focused && visible !== 'none') ? 'detail' : visible === 'preview' ? 'standard' : visible;
   return levels[Math.min(levels.indexOf(desired), levels.indexOf(ceiling))];
+}
+
+/** Two tour rings; size hysteresis still determines whether a model is resident.
+ * Low-capability tours start one level lower and never request originals.
+ */
+export function requestedTourModelTier(pixels: number, previous: ModelTier, focused: boolean, sustained: boolean, underpowered: boolean): ModelTier {
+  if (chooseModelTier(pixels, previous) === 'none') return 'none';
+  if (underpowered) return focused ? sustained ? 'detail' : 'standard' : sustained ? 'standard' : 'preview';
+  return focused || sustained ? 'detail' : 'standard';
+}
+
+export function cameraFacesModel(camera: Camera, worldMatrix: Matrix4): boolean {
+  return Number.isFinite(cameraModelDistance(camera, worldMatrix));
 }

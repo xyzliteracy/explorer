@@ -57,3 +57,13 @@ it('retains prepared geometry on original failure and prefers a loaded original'
   expect(StreamingModel({ node, tier: 'standard', resolved: false, selected: true }).props.scene).toBe(original.scene);
   vi.mocked(useSelectedModelAsset).mockReset();
 });
+
+it('uses sustained tour focus for originals, ignoring stale editor selection in tours', () => {
+  vi.mocked(useModelAsset).mockReset().mockReturnValue(undefined);
+  vi.mocked(useSelectedModelAsset).mockReset();
+  const node = createSpatialDocument('"Shelf/+0+1/+0+1/+0+1":"model: side_shelves.glb"').renderNodes[0];
+  StreamingModel({ node, tier: 'detail', resolved: false, selected: true, tourMode: true });
+  expect(useSelectedModelAsset).toHaveBeenLastCalledWith(undefined);
+  StreamingModel({ node, tier: 'detail', resolved: false, selected: false, tourMode: true, tourOriginal: true });
+  expect(useSelectedModelAsset).toHaveBeenLastCalledWith('http://localhost/side_shelves.glb');
+});

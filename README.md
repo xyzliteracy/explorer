@@ -24,6 +24,53 @@ this directory on any static web host. `npm run preview` serves it locally.
 
 ## Shared core
 
+Tour quality uses two observer-centered rings: the nearest model's declared
+fitted box intersected by the camera's center ray, and all other visible models.
+Offscreen and tiny-object screen-size hysteresis still determines residency.
+
+| Device profile | Center / outer ring | After 2 seconds of center focus |
+| --- | --- | --- |
+| Normal | detail / standard | original / detail |
+| Underpowered (`low`) | standard / preview | detail / standard |
+
+The sustained boost applies to every visible model while center focus is held.
+Underpowered tours never request an original. The existing capability detection
+selects `low` for devices reporting at most 2 GB memory or at most 2 CPU cores;
+DPR limits remain unchanged. Outside tours, the existing quality ceilings and
+selection behavior apply.
+
+Tour models keep their prepared quality until a lower tier has been requested
+continuously for two seconds, including when leaving the view. Returning before
+that delay cancels the downgrade; prepared upgrades remain immediate. When focus
+moves, ring downgrade timers start immediately, so the original's away grace does
+not add another two seconds to them.
+
+After two seconds of uninterrupted center focus on normal devices, the original
+`<stem>.glb` loads through the existing single-original store. Prepared assets
+remain loading/error fallbacks. Looking away retains the old original for two
+seconds; returning cancels its release. Only one tour original is requested at a
+time. Originals retain the existing uncapped selection-store policy. Prepared
+memory/triangle budgets, decoder limits, shared caching, eviction, demand
+rendering, and non-tour selection behavior remain unchanged. Ring tiers are
+requests, subject to budget admission and asset availability.
+
+After the tour's two-second offscreen delay, model references are released;
+offscreen objects do not retain a rendered preview. Unreferenced prepared assets
+are disposed after the existing five-second cache grace period, or sooner under
+memory pressure. Shared assets remain resident while other instances need them.
+Originals have no additional cache grace. Non-tour offscreen release still uses
+the existing 750 ms delay.
+
+This is a camera-based approximation of visual attention, not eye tracking or
+mesh-level occlusion detection. The timing constant is `TOUR_DWELL_MS` in
+`src/performance/TourModelFocus.tsx`.
+
+Regression coverage checks nearest-center arbitration, uninterrupted focus,
+look-away cancellation, both device profiles and rings, original loading gates,
+and timer completion while demand rendering is idle. Validation for this change:
+`npm test` passed all 288 tests, and `npm run build` passed TypeScript compilation
+and the production Vite build.
+
 `@xyz/viewer` exports `createSpatialDocument`, `SceneRoot`, and `AssetResolver`.
 Source subpath exports expose the parser, spatial model, camera/navigation,
 selection, and model resource lifecycle. Consumers need a TypeScript-aware

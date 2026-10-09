@@ -1,0 +1,60 @@
+import { afterEach, expect, it, vi } from 'vitest';
+import { TourFocusDwell } from './TourModelFocus';
+afterEach(() => vi.useRealTimers());
+it('requires uninterrupted focus and settles without another frame', () => {
+  vi.useFakeTimers();
+  const changed = vi.fn();
+  const dwell = new TourFocusDwell(changed);
+  dwell.update('a');
+  vi.advanceTimersByTime(1500);
+  dwell.update('b');
+  vi.advanceTimersByTime(1999);
+  expect(changed).not.toHaveBeenCalled();
+  vi.advanceTimersByTime(1);
+  expect(changed).toHaveBeenLastCalledWith('b');
+  dwell.close();
+});
+it('retains originals through brief glances away and releases after two seconds', () => {
+  vi.useFakeTimers();
+  const changed = vi.fn();
+  const dwell = new TourFocusDwell(changed);
+  dwell.update('a');
+  vi.advanceTimersByTime(2000);
+  dwell.update();
+  vi.advanceTimersByTime(1500);
+  dwell.update('a');
+  vi.advanceTimersByTime(2500);
+  expect(changed).toHaveBeenCalledTimes(1);
+  dwell.update('b');
+  vi.advanceTimersByTime(2000);
+  expect(changed).toHaveBeenLastCalledWith('b');
+  dwell.update();
+  vi.advanceTimersByTime(2000);
+  expect(changed).toHaveBeenLastCalledWith(undefined);
+  dwell.close();
+});
+it('cancels pending work on cleanup', () => {
+  vi.useFakeTimers();
+  const changed = vi.fn();
+  const dwell = new TourFocusDwell(changed);
+  dwell.update('a');
+  dwell.close();
+  vi.advanceTimersByTime(3000);
+  expect(changed).not.toHaveBeenCalled();
+});
+
+it('does not restart the away grace period while panning across other objects', () => {
+  vi.useFakeTimers();
+  const changed = vi.fn();
+  const dwell = new TourFocusDwell(changed);
+  dwell.update('a');
+  vi.advanceTimersByTime(2000);
+  dwell.update('b');
+  vi.advanceTimersByTime(1000);
+  dwell.update('c');
+  vi.advanceTimersByTime(1000);
+  expect(changed).toHaveBeenLastCalledWith(undefined);
+  vi.advanceTimersByTime(1000);
+  expect(changed).toHaveBeenLastCalledWith('c');
+  dwell.close();
+});
