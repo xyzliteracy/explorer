@@ -24,7 +24,7 @@
 "Pap/MainOpening/+270c+80c/+0+210c/+397c+1c":"operation: subtraction"
 
 "Pap/LeftWindow/+0+1d/+100c+115c/+47c+292c" : "operation: subtraction"
-"LeftCurtain/+61c+3208m/+103c+239c/+1258m+15d" : "model: lepapayer/lounge_curtain.glb; rotation: 0, 90, 0"
+"LeftCurtain/+61c+3208m/+103c+239c/+1258m+15d" : "model: lepapayer/lounge_curtains.glb; rotation: 0, 90, 0"
 
 "Pap/BedRoomLeft/+638c+13c/+0+3/+11m+274c" : "color: white"
 
@@ -41,8 +41,16 @@
 "Pap/SofaTable/+35m+54c/+0+43c/+3363m+46c" : "model: lepapayer/round_stool.glb;"
 "Pap/FlowerPot/+2c+76c/+0+16d/+0+91c" : "model: lepapayer/potted_plant.glb"
 "Pap/Console/+94c+16d/+0+5d/+0+45c" : "model: lepapayer/media_console.glb"
-"Pap/LoungeArt/+235c+48c/+123c+1/+0+101m" : "model: lepapayer/geometric_art.glb"
+"Pap/GeometricArt/+235c+48c/+103c+1/+0+101m" : "model: lepapayer/geometric_art.glb"
 "Pap/BrownArmChair/+154m+8d/+0+6d/+2171m+7d" : "model: lepapayer/brown_armchair.glb; rotation: 0, 90, 0"
 "Pap/GreyArmChair/+154m+8d/+0+6d/+1217m+7d" : "model: lepapayer/grey_armchair.glb; rotation: 0, 90, 0"
 "LoungeRug/+309c+1281m/+22c+161c/+19d+2c" : "model: lepapayer/lounge_rug.glb; model-align: floor; rotation: 90, 0, 0"
-"Pap/KitchenStudio/+3408m+301c/+0+209c/+1c+289c" : "model: lepapayer/kitchen_studio.glb;"
+"Pap/KitchenStudio/+3408m+301c/+0+209c/+1c+22d" : "model: lepapayer/kitchen_unit.glb; model-align: floor"
+"Pap/GlassTable/+1139m+108c/+0+43c/+1582m+58c" : "model: lepapayer/glassy_table.glb; rotation: 0, 90, 0"
+"Pap/Television/+952m+101c/+11d+61c/+0+6d" : "model: lepapayer/wall_television.glb"
+"Pap/GoldLamp/+11c+4d/+43c+6d/+337c+4d" : "model: lepapayer/golden_lamp.glb"
+"Pap/LoungeArt/+886m+11d/+11d+64c/+3846m+101m" : "model: lepapayer/lounge_art.glb; rotation: 0, 180, 0"
+"Pap/OttomanStool/+2083m+4d/+0+36c/+1694m+38c" : "model: lepapayer/ottoman_stool.glb"
+"Pap/DiningStool1/+3035m+6d/+0+9d/+0+5d" : "model: lepapayer/dining_stool.glb; rotation: 0, 90, 0"
+"Pap/DiningStool2/+3035m+6d/+0+9d/+7d+5d" : "model: lepapayer/dining_stool.glb; rotation: 0, 90, 0"
+"Pap/DiningStool3/+3035m+6d/+0+9d/+13d+5d" : "model: lepapayer/dining_stool.glb; rotation: 0, 90, 0"
