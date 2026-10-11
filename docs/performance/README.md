@@ -1,6 +1,6 @@
 # Web model runtime
 
-Explorer uses `ModelPrimitive`, `ModelRuntime`, and `ModelAssetStore` for model rendering, resource disposal, and screen-size LOD selection. Web URLs load directly.
+Explorer uses `ModelPrimitive`, `ModelRuntime`, and `ModelAssetStore` for model rendering, resource disposal, and stable model fidelity. Web URLs load directly.
 
 ## Prepare assets before publishing
 
@@ -31,23 +31,22 @@ The input directory is read-only. Output includes three independent GLBs per mod
 
 Do not insert Markdown escapes into DSL filenames: use `bed_lamp.preview.glb`, not `bed\_lamp.preview\.glb`. Assets must be served by the web server; a pasted filename does not grant the browser access to local disk.
 
-`model-preview` and `model-detail` are optional, inherit with a model declaration, and are cleared when its source is overridden. Unqualified `model: name.glb` declarations resolve to `name.standard.glb`; explicitly named variants keep their filenames. Oversized legacy assets show an actionable placeholder rather than being retained at full quality. A missing or failed upgrade keeps the loaded preview.
+`model-preview` and `model-detail` are optional, inherit with a model declaration, and are cleared when its source is overridden. Normal devices keep the explicit `model-detail` asset or inferred `<stem>.detail.glb` as their stable textured baseline. If that request fails, they load the original `<stem>.glb`. Suffixes, query strings and fragments are handled before transport. Even a `.standard` or `.preview` source filename does not force preview fidelity on a normal device.
 
 ## Runtime policy
 
-Defaults live in `src/performance/ModelAssetStore.ts`, `modelVisibility.ts`, and `ModelRuntime.tsx`:
+- Fix the baseline for the document: textured detail on normal devices; previews only with critical capability evidence (reported RAM ≤1 GiB, or RAM ≤2 GiB together with ≤2 logical cores). Mobile viewports, coarse pointers, and CPU hints alone never select previews.
+- Acquire every textured baseline before exploration. Keep it resident through camera movement and tours, with no preview-first loading or disappearing slots.
+- Prefetch originals for nearby models covering at least 400 CSS pixels, using a 1.75× guard frustum. After promotion, the original stays visible even if its screen size shrinks. Under memory pressure, release it only after eight seconds outside the view and guard region, or fully concealed by a verified solid wall. A visible original is never withdrawn by another model's priority.
+- Keep recently used originals cached when below the soft target. When over target, cold released originals are disposed immediately. Shared URLs remain alive while any instance owns them. Extremely aggressive inferred simplification (more than 32× reduction) pins its original after the first promotion to protect close-up UV fidelity; this guards the supplied bed and plant assets.
+- An opaque preparation screen covers initial preparation until every baseline and the initially requested originals are ready, including fallback requests. Subsequent original requests keep the textured baseline visible. Initialize offscreen textures and compile shaders before revealing a rendered frame. Failures remain covered with a retry action rather than a placeholder-filled scene. Rendering failures also enter this state. WebGL context loss re-enters preparation until recovery.
+- One active load/decode limits transient work. URLs share decoded geometry, materials and textures; repeated models clone their object hierarchy, not their buffers or textures. Fitted bounds remain consistent.
+- Referenced document assets have residency priority. The normal 512 MiB / critical 128 MiB cache targets are **soft**, not admission limits for required models. No triangle admission rule can replace an already displayed model with a preview or blank space. Removed models expire after five seconds, or earlier under memory pressure/new loading. Geometry, textures, materials, skeletons and image bitmaps are disposed.
+- Demand rendering stops drawing at rest; hidden documents stop rendering. Camera movement and asset completions invalidate frames. Antialiasing is enabled, dynamic shadows remain disabled, and balanced DPR is capped at 1.5 (critical devices: 1). Renderer pixel settings do not change model fidelity.
 
-- One active asset load/decode; previews have priority over upgrades.
-- Camera frustum and projected bounding-sphere diameter determine loading. Offscreen assets are released. Hysteresis prevents rapid switching near size thresholds.
-- Preview below ~170 CSS pixels; standard above ~170; detail above ~550. Downgrade thresholds are 110 and 400 pixels. Tiny objects below 6–12 pixels retain only a box placeholder.
-- Keep the preview resident during upgrades. Admission counts both preview and detail claims conservatively, even though only one is drawn.
-- 128 MiB estimated retained geometry/texture storage and 600,000 admitted model triangles across instances. Shared URLs share storage, but every instance consumes triangle allowance. Non-model scene geometry is outside this model budget.
-- Unreferenced assets expire after five seconds, or immediately when a new load needs space. Dispose geometry, materials, textures, image bitmaps, and skeleton resources. Capacity-deferred assets retry when space frees. Explicit retry retries failed requests without reloading healthy models.
-- Demand rendering, pixel ratio capped at 1.5, no antialiasing or dynamic shadows. Orbit, focus/reset, POV input, and asset completions request frames. Hidden documents stop rendering. Held POV movement continues requesting frames, including while collision-blocked.
+The memory estimate is **not a browser/process RAM cap**. It excludes decoder WASM heaps, JS objects, CPU image copies, framebuffers, and other browser memory. Required scene residency can exceed the soft targets. Prepared high-detail assets are essential for large scenes; loading all original scans can exhaust memory even with serial loading. The runtime deliberately does not mask an oversized scene by degrading visible models. Browser capability determines the final KTX2 transcode format and its storage.
 
-The memory estimate is **not a browser/process RAM cap**. It excludes decoder WASM heaps, JS objects, CPU image copies, framebuffers, and other browser memory. Admission happens after decode, so one oversized legacy GLB can temporarily exceed the budget. In-flight decode is allowed to finish and its stale result is disposed; queued work is canceled. Prepared assets are essential to keep those transient costs small. Browser capability determines the final KTX2 transcode format and its storage.
-
-There is no occlusion culling or streaming within a single GLB. Switching levels fetches separate assets. Instancing/batching and a shared editor/browser UI remain future work; the renderer performance layer is unified now.
+A conservative occlusion proof treats a model as hidden only when all eight declared-box corners lie behind the same opaque DSL box face. Cutouts, transparent/clipped materials, camera layer mismatches, and near-clipped walls cannot qualify. This controls original residency; there is no streaming within a single GLB. Three.js frustum culling avoids offscreen draws while document leases remain resident. Instancing/batching remain future work. Author and visually review optimized detail assets before publishing; automatic simplification cannot guarantee visual equivalence to originals.
 
 ## Verification
 
@@ -79,30 +78,26 @@ All ten input GLBs already used Draco. The original combined file size was **224
 | Standard | 20.89 MiB | 815,842 |
 | Detail | 44.89 MiB | 1,068,848 |
 
-The standard set is about 90.7% smaller on disk and contains 96.3% fewer triangles. Combined standard/detail triangle totals exceed the scene admission budget: higher-priority detail displaces standard rendering, with previews retained for other objects. These totals describe the asset corpus, not simultaneous rendering. A close-up original/prepared comparison caught UV damage from aggressive simplification; the pipeline now preserves seam constraints, accepting extra geometry. Automatic LODs still reduce detail and require visual review. See `original-vs-detail.png`, `corpus-report.json`.
+The standard set is about 90.7% smaller on disk and contains 96.3% fewer triangles. The current runtime keeps the entire detail baseline resident and no longer applies the former 600,000-triangle admission limit. In the current browser acceptance fixture this set occupies approximately 75.7 MiB of estimated model resources. A close-up original/prepared comparison caught UV damage from aggressive simplification; the pipeline now preserves seam constraints, accepting extra geometry. Automatic LODs still reduce detail and require visual review. See `original-vs-detail.png`, `corpus-report.json`.
 
 Historical corpus measurements predate the project separation; rerun the web acceptance suite to validate the current build.
 
-An optional visual comparison test reads `public/performance-originals/bed_lamp.glb` and compares it with the generated detail asset. Copy that one original there to reproduce it; run `npm run test:performance -- --grep 'visual comparison'`. It is skipped when that optional fixture is absent. The original bypasses mobile admission only in this dev-only comparison harness.
+An optional visual comparison test reads `public/performance-originals/bed_lamp.glb` and compares it with the generated detail asset. Copy that one original there to reproduce it; run `npm run test:performance -- --grep 'visual comparison'`. It is skipped when that optional fixture is absent. This dev-only harness allows direct visual comparison of fidelity.
 
 ## Explorer quality and selection
 
-Explorer's Quality selector persists Low/Balanced/High locally. Low caps DPR at 1 and requests previews; Balanced caps DPR at 1.5 and standard assets; High caps DPR at 2 and allows detail. Coarse-pointer devices and reported memory/CPU counts of four or less default to Low; other devices default to Balanced. Missing LOD files fall back to the existing `model` source, so preparing assets remains essential. All modes retain demand rendering, disabled dynamic shadows/antialiasing, and the same memory budget.
-
-Selected Explorer objects stay resident outside the view. Their prepared fallback receives queue/render priority within the usual budgets; selection additionally loads the original `<stem>.glb` in a separate, exclusive slot regardless of the quality setting. This one original bypasses the prepared memory/triangle limits, appears above prepared variants when ready, and is immediately released on deselection. Original loads are serialized: stale in-flight decodes finish and are disposed before the next original loads. Missing originals keep the prepared fallback visible. Upload originals beside the generated variants; preprocessing still emits only the three prepared levels. Runtime residency statistics include the selected original, so totals can exceed the prepared budget. Other objects leaving the view retain their lease for 750 ms before the five-second cache grace period starts. Development builds display model residency and estimated bytes beside the quality control.
+Device hints choose conservative pixel settings independently of model fidelity. Ordinary devices use high-detail prepared models even at mobile viewport sizes. Selection prefetches its original. Tours use the same visibility and prefetch policy as ordinary panning, rather than one exclusive original selected by gaze. Original release affects only cold offscreen models under pressure. Development builds show residency and estimated resource bytes.
 
 ## Asset inspection and per-model budgets
 
-Run `npm run assets:inspect -- INPUT_DIRECTORY REPORT.json` before uploading assets. Add `--strict` to fail CI for budget warnings. The report includes decoded geometry bytes, conservative texture memory, dimensions, triangle/draw-call counts across nodes, animation bytes, cameras and lights. Recommended ceilings per model are 60,000 triangles, 32 draw calls, 1024 px textures and 32 MiB geometry/texture memory; scene admission remains 128 MiB and 600,000 triangles. Texture estimates use RGBA plus mipmaps conservatively; actual KTX2 GPU memory depends on the device. This report is offline metadata, not a guarantee about peak decode memory. Preparation strips authored cameras/lights before writing LODs.
+Run `npm run assets:inspect -- INPUT_DIRECTORY REPORT.json` before uploading assets. Add `--strict` to fail CI for budget warnings. The report includes decoded geometry bytes, conservative texture memory, dimensions, triangle/draw-call counts across nodes, animation bytes, cameras and lights. Recommended ceilings per model are 60,000 triangles, 32 draw calls, 1024 px textures and 32 MiB geometry/texture memory; keep the complete room within the intended devices’ practical memory and draw-call capacity. Runtime residency targets are soft; asset inspection is the place to identify oversized scenes before publishing. Texture estimates use RGBA plus mipmaps conservatively; actual KTX2 GPU memory depends on the device. This report is offline metadata, not a guarantee about peak decode memory. Preparation strips authored cameras/lights before writing LODs.
 
 ### Automatic model variants
 
-A declaration such as `model: chair.glb` automatically attempts
-`chair.preview.glb` and `chair.detail.glb` at the corresponding visibility tiers.
-`model: chair.standard.glb` uses those same siblings, matching `assets:prepare`.
-An unqualified base `model` URL resolves to its `.standard.glb` sibling; explicitly named variants are preserved. Query strings and fragments are
-preserved. Explicit `model-preview` or `model-detail` values override inference
-for that tier, including inherited values. Inference happens after inheritance
-and URL resolution, before asset transport. Failed inferred variants fall back
-to the resolved base model; a loaded preview remains visible while it loads. Assets
-continue to obey the shared loading and memory budgets.
+`model: chair.glb` or `model: chair.standard.glb` requests `chair.detail.glb` on an ordinary device and `chair.preview.glb` on a critically underpowered device. Explicit `model-detail`/`model-preview` values override those inferred filenames. A failed high-detail request falls back to `chair.glb`; a failed critical preview falls back to the declared source. The preparation screen covers either path until the model is ready. Camera-driven reductions affect only cold offscreen originals; visible promoted originals never downgrade. Fast jumps can still show the textured detail baseline while an uncached original loads. The guard is a prediction, not a guarantee about arbitrary navigation or network latency. Prepared assets must be visually reviewed; the supplied bed detail has UV damage, so its original is retained after promotion.
+
+## Pap room validation (2026-10-11)
+
+`LEPAPAYER_MODELS=/path/to/lepapayer-models npx playwright test tests/performance/lepapayer.spec.ts` uses the supplied preprocessed variants directly, with the complete Pap DSL (26 instances, 23 unique models). It validates all four viewpoints, two full rapid pans, eight-second cold reclamation, return-to-bed fidelity, no previews on ordinary hardware, no disappearing slots, no downgrade of a visible promoted original, and stopped rendering at rest. The same suite runs at desktop and 390×844 mobile viewports. The latter emulates browser capability hints, not a physical phone.
+
+This scene remains expensive: observed model resources were about 375 MiB initially / 1,274 MiB after navigation on desktop and 741 MiB / 1,000 MiB in mobile emulation. These are soft-target overruns, not process RAM measurements. The supplied detail bed visibly damages bedding UVs; its original is retained after promotion. Uncached first visits can initially show textured detail until the original finishes loading; the guard reduces that window but cannot eliminate network latency or repair preprocessed geometry.
