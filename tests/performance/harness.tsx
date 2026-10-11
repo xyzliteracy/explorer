@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { _roots } from '@react-three/fiber';
 import { SceneRoot } from '../../src/scene/SceneRoot';
-import { SelectedModelAssetStore } from '../../src/performance/SelectedModelAssetStore';
 import { ModelAssetStore } from '../../src/performance/ModelAssetStore';
 import { modelScreenPixels } from '@xyz/viewer/performance/modelVisibility';
 import { createSpatialDocument } from '../../src/model/createSpatialDocument';
@@ -17,7 +16,7 @@ const noop = () => {};
 let assetStore;
 let originalStore;
 const acquire = ModelAssetStore.prototype.acquire;
-ModelAssetStore.prototype.acquire = function (...args) { if (this instanceof SelectedModelAssetStore) originalStore = this; else assetStore = this; return acquire.apply(this, args); };
+ModelAssetStore.prototype.acquire = function (...args) { if (this.budget.idleMs === 0) originalStore = this; else assetStore = this; return acquire.apply(this, args); };
 let setScene;
 let selectNode;
 let frames = 0;
@@ -60,6 +59,7 @@ const interval = setInterval(() => {
     return root ? { assets: assetStore?.status(), original: originalStore?.status(), camera: root.camera.position.toArray(), controls: root.controls?.target?.toArray(), frames, calls: root.gl.info.render.calls, triangles: root.gl.info.render.triangles, textures: root.gl.info.memory.textures, geometries: root.gl.info.memory.geometries, dpr: root.viewport.dpr, frameloop: root.frameloop, presentations: presentations(), requests } : null;
   },
   camera: (position, target) => { const root = state(); root.camera.position.set(...position); root.camera.lookAt(...target); if (root.controls) { root.controls.target.set(...target); root.controls.update(); } root.invalidate(); },
+  context: () => state().gl.getContext().getExtension('WEBGL_lose_context'),
   clear: () => setScene({ ...full, nodes: [], renderNodes: [] }),
   restore: () => setScene(full),
   only: (index) => setScene({ ...full, nodes: [full.nodes[index]], renderNodes: [full.renderNodes[index]] }),

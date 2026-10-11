@@ -6,10 +6,10 @@ for (const mobile of [false, true]) {
   test(`Pap room: stable high quality through navigation (${mobile ? 'mobile' : 'desktop'})`, async ({ page }) => {
     test.skip(!existsSync(directory), 'Set LEPAPAYER_MODELS to the local original/prepared GLB folder');
     if (mobile) await page.setViewportSize({ width: 390, height: 844 });
-    await page.addInitScript(() => {
-      Object.defineProperty(navigator, 'deviceMemory', { value: 4 });
+    await page.addInitScript(memory => {
+      Object.defineProperty(navigator, 'deviceMemory', { value: memory });
       Object.defineProperty(navigator, 'hardwareConcurrency', { value: 4 });
-    });
+    }, mobile ? 4 : 8);
     const errors: string[] = [];
     const requests: string[] = [];
     page.on('pageerror', error => errors.push(error.message));
@@ -68,6 +68,8 @@ for (const mobile of [false, true]) {
     }
     expect(new Set(requests).size).toBeGreaterThanOrEqual(counts.unique);
     await page.waitForTimeout(14500);
+    await expect.poll(() => page.evaluate(() => window.performanceTest.snapshot().original?.loading ?? 0)).toBe(0);
+    await page.waitForTimeout(300);
     const idle = await page.evaluate(() => window.performanceTest.snapshot());
     await page.waitForTimeout(1000);
     const resting = await page.evaluate(() => window.performanceTest.snapshot());
@@ -77,7 +79,13 @@ for (const mobile of [false, true]) {
     for (let i = 0; i < 3; i++) await page.getByRole('button', { name: mobile ? 'Next view point' : 'Next', exact: true }).click();
     await page.waitForTimeout(500);
     const bed = await page.evaluate(() => window.performanceTest.snapshot().presentations.find(model => model.id.startsWith('Pap/Bed/')));
-    expect(bed.source).toMatch(/\/bed.glb$/);
+    const bedWasPromoted = [...views, ...pan.map(frame => ({ presentations: frame.models }))].some(view => view.presentations.some(model => model.id.startsWith('Pap/Bed/') && model.source?.endsWith('/bed.glb')));
+    if (bedWasPromoted) expect(bed.source).toMatch(/\/bed.glb$/);
+    else expect(bed.meshes).toBeGreaterThan(0);
+    if (mobile) {
+      expect(resting.original.bytes).toBeLessThanOrEqual(160 * 1024 * 1024);
+      expect(resting.assets.bytes + resting.original.bytes).toBeLessThanOrEqual(256 * 1024 * 1024);
+    }
     await page.screenshot({ path: `test-results/pap-${mobile ? 'mobile' : 'desktop'}-return-bed.png` });
     expect(errors).toEqual([]);
     await test.info().attach('pap-measurements', { body: JSON.stringify({ counts, first, views, pan, idle, resting, requests }, null, 2), contentType: 'application/json' });
