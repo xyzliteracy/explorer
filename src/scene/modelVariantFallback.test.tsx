@@ -2,12 +2,12 @@ import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { StreamingModel } from './ModelPrimitive';
 import { createSpatialDocument } from '../model/createSpatialDocument';
-import { useModelAsset, useModelPresentation } from '../performance/ModelRuntime';
+import { useModelAsset, useOriginalModelAsset, useModelPresentation } from '../performance/ModelRuntime';
 vi.mock('react', async original => ({ ...(await original<typeof import('react')>()), useEffect: vi.fn() }));
-vi.mock('../performance/ModelRuntime', () => ({ useModelAsset: vi.fn(), useModelPresentation: vi.fn(), useModelSceneRevealed: () => true }));
+vi.mock('../performance/ModelRuntime', () => ({ useOriginalModelAsset: vi.fn(), useModelAsset: vi.fn(), useModelPresentation: vi.fn(), useModelSceneRevealed: () => true }));
 vi.mock('../assets', () => ({ useAssetResolver: () => (source: string) => new URL(source, 'http://localhost/').href }));
 const nodeFor = (properties = '') => createSpatialDocument(`"Chair/+0+1/+0+1/+0+1":"model: chair.glb; ${properties}"`).renderNodes[0];
-beforeEach(() => { vi.mocked(useModelAsset).mockReset().mockReturnValue(undefined); vi.mocked(useModelPresentation).mockClear(); });
+beforeEach(() => { vi.mocked(useModelAsset).mockReset().mockReturnValue(undefined); vi.mocked(useOriginalModelAsset).mockReset().mockReturnValue(undefined); vi.mocked(useModelPresentation).mockClear(); });
 describe('stable model presentation', () => {
   it.each(['none', 'standard', 'detail'] as const)('uses one stable textured detail baseline at %s', tier => {
     expect(StreamingModel({ node: nodeFor(), tier, resolved: false, selected: false })).toBeNull();
@@ -38,7 +38,7 @@ describe('stable model presentation', () => {
       const rendered = StreamingModel({ node: nodeFor(), tier: 'detail', resolved: false, selected, tourMode: true, tourOriginal: selected });
       expect(rendered?.props.scene).toBe(model.scene);
     }
-    expect(useModelAsset).toHaveBeenCalledTimes(9);
+    expect(useModelAsset).toHaveBeenCalledTimes(6);
     expect(useModelPresentation).toHaveBeenLastCalledWith(true, undefined);
   });
 });
@@ -49,7 +49,7 @@ it('prefetches originals separately and retains detail until the original is rea
   vi.mocked(useModelAsset).mockImplementation(url => url?.endsWith('.detail.glb') ? { value: detail, bytes: 1, triangles: 1 } : undefined);
   const props = { node: nodeFor(), tier: 'detail' as const, resolved: false, selected: false, originalNeeded: true };
   expect(StreamingModel(props)?.props.scene).toBe(detail.scene);
-  expect(useModelAsset).toHaveBeenLastCalledWith('http://localhost/chair.glb', 1000);
-  vi.mocked(useModelAsset).mockImplementation(url => ({ value: url?.endsWith('.detail.glb') ? detail : original, bytes: 1, triangles: 1 }));
+  expect(useOriginalModelAsset).toHaveBeenLastCalledWith('http://localhost/chair.glb', 1000);
+  vi.mocked(useOriginalModelAsset).mockReturnValue({ value: original, bytes: 1, triangles: 1 });
   expect(StreamingModel(props)?.props.scene).toBe(original.scene);
 });

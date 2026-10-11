@@ -1,7 +1,8 @@
 import { useFrame } from '@react-three/fiber';
 import { Component, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ErrorInfo, type ReactNode } from 'react';
-import { useModelAsset, useModelPresentation, useModelRetryGeneration, useModelMemoryPressure, useModelSceneRevealed } from '../performance/ModelRuntime';
+import { useModelAsset, useOriginalModelAsset, useModelPresentation, useModelRetryGeneration, useModelMemoryPressure, useModelSceneRevealed } from '../performance/ModelRuntime';
 import { modelScreenPixels, type ModelTier } from '../performance/modelVisibility';
+import { currentModelUpgradePolicy } from '../performance/modelUpgradeMemory';
 import { modelOccluded } from '../performance/modelOcclusion';
 import { criticallyUnderpoweredDevice } from '../performance/renderQuality';
 import type { ThreeEvent } from '@react-three/fiber';
@@ -67,7 +68,7 @@ export function ModelObject({ scene, fit, align, node, targetScale, onPrecisionS
   return <group scale={fitted.scale}><group position={fitted.position}><primitive object={imported.scene} dispose={null} /></group></group>;
 }
 
-export function StreamingModel({ node, tier, resolved, originalNeeded = false, onRetainOriginal, onPrecisionScaleChange }: { onRetainOriginal?: () => void; originalNeeded?: boolean; tourOriginal?: boolean; tourMode?: boolean; node: SpatialNode; tier: ModelTier; resolved: boolean; selected: boolean; onPrecisionScaleChange?: (value: number | undefined) => void }) {
+export function StreamingModel({ node, tier, resolved, originalNeeded = false, originalPriority = 1000, onRetainOriginal, onPrecisionScaleChange }: { originalPriority?: number; onRetainOriginal?: () => void; originalNeeded?: boolean; tourOriginal?: boolean; tourMode?: boolean; node: SpatialNode; tier: ModelTier; resolved: boolean; selected: boolean; onPrecisionScaleChange?: (value: number | undefined) => void }) {
   const resolveModelUrl = useAssetResolver();
   const model = node.model!;
   // The textured baseline never depends on the camera. Original fidelity is
@@ -82,7 +83,7 @@ export function StreamingModel({ node, tier, resolved, originalNeeded = false, o
   const fallbackUrl = target?.error && source !== fallbackSource ? resolve(fallbackSource) : undefined;
   const fallback = useModelAsset(fallbackUrl, 2000);
   const originalUrl = originalNeeded && !model.detailSource && tier !== 'preview' && model.source ? resolve(originalModelSource(model.source)) : undefined;
-  const original = useModelAsset(originalUrl === targetUrl || originalUrl === fallbackUrl ? undefined : originalUrl, 1000);
+  const original = useOriginalModelAsset(originalUrl === targetUrl || originalUrl === fallbackUrl ? undefined : originalUrl, originalPriority);
   const baseline = target?.value ? target : fallback?.value ? fallback : undefined;
   const asset = original?.value ? original : baseline;
   const revealed = useModelSceneRevealed();
@@ -103,6 +104,8 @@ export function ModelPrimitive({ node, onSelect, selectionEnabled = true, onPrec
   const model = node.model!;
   const { position, rotation, scale } = node.transform;
   const [critical] = useState(criticallyUnderpoweredDevice);
+  const [constrained] = useState(() => currentModelUpgradePolicy().constrained);
+  const [originalPriority, setOriginalPriority] = useState(1000);
   const recovery = useModelRetryGeneration();
   const pressure = useModelMemoryPressure();
   const group = useRef<Group>(null);
@@ -123,7 +126,9 @@ export function ModelPrimitive({ node, onSelect, selectionEnabled = true, onPrec
     // fidelity for the entire visible interval, even when its screen size shrinks.
     const occluded = Boolean(!retainOriginal && !selected && (pixels > 0 || ahead >= 400) && scene && gl && modelOccluded(camera, scene, group.current.matrixWorld, gl.info.render.frame));
     guarded.current = retainOriginal || (!occluded && (pixels > 0 || ahead >= 400)) || selected;
-    if (selected || (!occluded && (pixels >= 400 || ahead >= 400))) {
+    const priority = selected ? 4000 : !occluded && pixels >= 400 ? 3000 : 1000;
+    if (priority !== originalPriority) setOriginalPriority(priority);
+    if (selected || (!occluded && (pixels >= 400 || (!constrained && ahead >= 400)))) {
       if (!originalNeeded) setOriginalNeeded(true);
     }
     if (guarded.current || !pressure || !originalNeeded) {
@@ -149,7 +154,7 @@ export function ModelPrimitive({ node, onSelect, selectionEnabled = true, onPrec
   function handleClick(event: ThreeEvent<MouseEvent>) { event.stopPropagation(); if (shouldSelectFromClick(selectionEnabled, event)) onSelect?.(node.id); }
   return <group ref={group} position={position} rotation={rotation} scale={scale} onClick={handleClick} userData={{ spatialNodeId: node.id, model: model.source }}>
     <ModelErrorBoundary key={`${model.source}:${model.previewSource}:${model.detailSource}:${model.fit}:${model.align}:${recovery}`}>
-      <Suspense fallback={<ModelFailure />}><StreamingModel node={node} tier={tier} originalNeeded={originalNeeded} onRetainOriginal={preserveOriginal} resolved={resolved} selected={selected} tourMode={tourMode} onPrecisionScaleChange={handlePrecisionScaleChange} /></Suspense>
+      <Suspense fallback={<ModelFailure />}><StreamingModel node={node} tier={tier} originalNeeded={originalNeeded} originalPriority={originalPriority} onRetainOriginal={preserveOriginal} resolved={resolved} selected={selected} tourMode={tourMode} onPrecisionScaleChange={handlePrecisionScaleChange} /></Suspense>
     </ModelErrorBoundary>
     <mesh userData={{ povCollisionIgnored: true }}>
       <boxGeometry />

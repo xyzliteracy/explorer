@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { ModelAssetStore } from './ModelAssetStore';
-const flush = async () => { for (let i = 0; i < 12; i++) await Promise.resolve(); };
+import { ModelAssetStore, ModelCapacityError } from './ModelAssetStore';
+const flush = async () => { for (let i = 0; i < 40; i++) await Promise.resolve(); };
 const model = (bytes = 10, triangles = 10) => ({ bytes, triangles }) as unknown as GLTF;
 const cost = (value: Pick<GLTF, 'scenes'>) => value as unknown as { bytes: number; triangles: number };
 const stores: ModelAssetStore[] = [];
@@ -115,4 +115,43 @@ it('keeps required scene assets and repeated instances visible over soft budgets
   expect(dispose).not.toHaveBeenCalled();
   releaseA(); releaseDuplicate(); releaseB();
   store.close(); expect(dispose).toHaveBeenCalledTimes(2);
+});
+
+it('defers optional upgrades before decode and keeps the granted original visible', async () => {
+  const load = vi.fn(async () => model(60)); const dispose = vi.fn();
+  const store = new ModelAssetStore(load, { bytes: 100, triangles: Infinity, concurrent: 1, idleMs: 0 }, dispose, cost, false, async () => {
+    if (store.status().bytes + 60 > store.budget.bytes) throw new ModelCapacityError({ bytes: 60, triangles: 10 });
+  });
+  stores.push(store);
+  const a = store.acquire('a'); store.acquire('b'); await flush();
+  expect(load).toHaveBeenCalledTimes(1);
+  expect(store.get('a')?.value).toBeDefined();
+  expect(store.get('b')?.error).toBeInstanceOf(ModelCapacityError);
+  expect(dispose).not.toHaveBeenCalled();
+  a(); await flush();
+  expect(load).toHaveBeenCalledTimes(2);
+  expect(store.get('b')?.value).toBeDefined();
+  expect(store.status().bytes).toBe(60);
+});
+it('pauses queued loads and resumes an interrupted decode without an error loop', async () => {
+  let count = 0;
+  const { store } = setup(async () => {
+    if (++count === 1) { store.setPaused(true); throw new DOMException('context lost', 'AbortError'); }
+    return model();
+  });
+  store.setPaused(true); store.acquire('a'); await flush(); expect(count).toBe(0);
+  store.setPaused(false); await flush(); expect(count).toBe(1); expect(store.get('a')?.error).toBeUndefined();
+  store.setPaused(false); await flush(); expect(count).toBe(2); expect(store.get('a')?.value).toBeDefined();
+});
+it('does not decode a preflight result after the runtime closes', async () => {
+  let finish!: () => void; const load = vi.fn(async () => model());
+  const store = new ModelAssetStore(load, undefined, undefined, cost, false, () => new Promise<void>(resolve => { finish = resolve; }));
+  stores.push(store); store.acquire('a'); await flush(); store.close(); finish(); await flush();
+  expect(load).not.toHaveBeenCalled(); expect(store.status().bytes).toBe(0);
+});
+it('changes queued priorities without releasing or disposing a visible lease', async () => {
+  const { store, dispose } = setup(async () => model()); const claim = Symbol();
+  store.acquire('a', 1000, claim); await flush();
+  store.updatePriority('a', claim, 3000); store.updatePriority('a', claim, 1000);
+  expect(store.get('a', claim)?.value).toBeDefined(); expect(dispose).not.toHaveBeenCalled();
 });

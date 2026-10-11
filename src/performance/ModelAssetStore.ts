@@ -3,7 +3,10 @@ import { disposeModel, estimateModel } from './modelResources';
 
 export const MOBILE_BUDGET = { bytes: 128 * 1024 * 1024, triangles: 600_000, concurrent: 1, idleMs: 5000 };
 export type AssetState = { value?: GLTF; error?: Error; bytes: number; triangles: number };
-type Entry = AssetState & { refs: number; priority: number; phase: 'queued' | 'loading' | 'ready' | 'error' | 'deferred'; needed?: { bytes: number; triangles: number }; claims: Map<symbol, number>; loadClaims: Map<symbol, number>; idleAt: number };
+type Entry = AssetState & { refs: number; priority: number; phase: 'queued' | 'loading' | 'ready' | 'error' | 'deferred'; needed?: { bytes: number; triangles: number }; claims: Map<symbol, number>; loadClaims: Map<symbol, number>; idleAt: number; retryAt?: number };
+export class ModelCapacityError extends Error {
+  constructor(readonly cost: { bytes: number; triangles: number }) { super('Original upgrade deferred until memory is available.'); }
+}
 export type AssetStatus = { total: number; ready: number; loading: number; bytes: number; triangles: number; errors: string[] };
 
 /** Shared ownership for both renderers. No React or platform transport dependencies.
@@ -18,8 +21,10 @@ export class ModelAssetStore {
   private active = 0;
   private version = 0;
   private closed = false;
+  private paused = false;
+  private retryTimer?: ReturnType<typeof setTimeout>;
   private timer?: ReturnType<typeof setTimeout>;
-  constructor(private load: (url: string) => Promise<GLTF>, readonly budget = MOBILE_BUDGET, private dispose = disposeModel, private estimate = estimateModel, private retainReferenced = false) {}
+  constructor(private load: (url: string) => Promise<GLTF>, readonly budget = MOBILE_BUDGET, private dispose = disposeModel, private estimate = estimateModel, private retainReferenced = false, private preflight?: (url: string) => Promise<void>) {}
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
   snapshot = () => this.version;
   get(url: string, claim?: symbol): AssetState | undefined {
@@ -35,6 +40,14 @@ export class ModelAssetStore {
     return undefined;
   }
   private changed() { this.version++; this.listeners.forEach(listener => listener()); }
+  updatePriority(url: string, claim: symbol, priority: number, renderPriority = priority) {
+    const entry = this.entries.get(url);
+    if (!entry?.claims.has(claim)) return;
+    if (entry.loadClaims.get(claim) === priority && entry.claims.get(claim) === renderPriority) return;
+    entry.loadClaims.set(claim, priority); entry.claims.set(claim, renderPriority);
+    entry.priority = Math.max(0, ...entry.loadClaims.values());
+    this.changed(); this.pump();
+  }
   acquire(url: string, priority = 0, claim = Symbol(url), renderPriority = priority) {
     if (this.closed) throw Error('Model store is closed');
     let entry = this.entries.get(url);
@@ -80,14 +93,33 @@ export class ModelAssetStore {
     for (const entry of this.entries.values()) if (entry.phase === 'error') { entry.phase = 'queued'; entry.error = undefined; }
     this.changed(); this.pump();
   }
+  isReferenced(url: string) { return Boolean(this.entries.get(url)?.refs); }
+  setPaused(paused: boolean) {
+    this.paused = paused; clearTimeout(this.retryTimer);
+    if (!paused) { for (const entry of this.entries.values()) entry.retryAt = undefined; this.pump(); }
+  }
+  refreshCapacity() { this.changed(); this.pump(); }
   private pump() {
-    if (this.closed) return;
+    if (this.closed || this.paused) return;
     while (this.active < this.budget.concurrent) {
-      const next = [...this.entries.entries()].filter(([, entry]) => entry.refs && (entry.phase === 'queued' || (entry.phase === 'deferred' && this.hasCapacity(entry.needed!)))).sort((a, b) => b[1].priority - a[1].priority)[0];
-      if (!next) break;
+      const next = [...this.entries.entries()].filter(([, entry]) => entry.refs && ((entry.phase === 'queued' && Date.now() >= (entry.retryAt ?? 0)) || (entry.phase === 'deferred' && this.hasCapacity(entry.needed!)))).sort((a, b) => b[1].priority - a[1].priority)[0];
+      if (!next) {
+        const waiting = [...this.entries.values()].filter(entry => entry.refs && entry.phase === 'queued' && entry.retryAt).map(entry => entry.retryAt!);
+        if (waiting.length) {
+          clearTimeout(this.retryTimer);
+          this.retryTimer = setTimeout(() => this.pump(), Math.max(1, Math.min(...waiting) - Date.now()));
+        }
+        break;
+      }
       const [url, entry] = next;
       entry.phase = 'loading'; this.active++;
-      void Promise.resolve().then(() => this.closed || !entry.refs ? undefined : this.load(url)).then(model => {
+      void Promise.resolve().then(async () => {
+        if (this.closed || !entry.refs) return;
+        await this.preflight?.(url);
+        if (this.closed || !entry.refs) return;
+        if (this.paused) throw new DOMException('Loading paused', 'AbortError');
+        return this.load(url);
+      }).then(model => {
         if (!model) {
           if (entry.refs && !this.closed) entry.phase = 'queued';
           else if (this.entries.get(url) === entry) this.entries.delete(url);
@@ -110,6 +142,10 @@ export class ModelAssetStore {
         Object.assign(entry, cost, { value: model, phase: 'ready', error: undefined });
       }).catch(reason => {
         if (this.closed || !entry.refs) { this.entries.delete(url); return; }
+        if (reason instanceof ModelCapacityError) {
+          entry.needed = reason.cost; entry.phase = 'deferred'; entry.error = reason; return;
+        }
+        if (reason?.name === 'AbortError') { entry.phase = 'queued'; entry.error = undefined; entry.retryAt = Date.now() + 50; return; }
         entry.error = reason instanceof Error ? reason : Error(String(reason)); entry.phase = 'error';
       }).finally(() => { this.active--; this.changed(); this.pump(); });
     }
@@ -126,7 +162,7 @@ export class ModelAssetStore {
     };
   }
   close() {
-    this.closed = true; clearTimeout(this.timer);
+    this.closed = true; clearTimeout(this.timer); clearTimeout(this.retryTimer);
     for (const [url, entry] of this.entries) this.remove(url, entry);
     this.listeners.clear();
   }
