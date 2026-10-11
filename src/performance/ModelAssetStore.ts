@@ -6,7 +6,12 @@ export type AssetState = { value?: GLTF; error?: Error; bytes: number; triangles
 type Entry = AssetState & { refs: number; priority: number; phase: 'queued' | 'loading' | 'ready' | 'error' | 'deferred'; needed?: { bytes: number; triangles: number }; claims: Map<symbol, number>; loadClaims: Map<symbol, number>; idleAt: number };
 export type AssetStatus = { total: number; ready: number; loading: number; bytes: number; triangles: number; errors: string[] };
 
-/** Shared ownership for both renderers. No React or platform transport dependencies. */
+/** Shared ownership for both renderers. No React or platform transport dependencies.
+ * retainReferenced treats the budget as an idle-cache target: required scene
+ * assets cannot be evicted or denied while their document still owns them.
+ * A triangle ceiling is unsuitable for visible-instance admission: crossing it
+ * must never make an already displayed model disappear.
+ */
 export class ModelAssetStore {
   private entries = new Map<string, Entry>();
   private listeners = new Set<() => void>();
@@ -14,12 +19,12 @@ export class ModelAssetStore {
   private version = 0;
   private closed = false;
   private timer?: ReturnType<typeof setTimeout>;
-  constructor(private load: (url: string) => Promise<GLTF>, readonly budget = MOBILE_BUDGET, private dispose = disposeModel, private estimate = estimateModel) {}
+  constructor(private load: (url: string) => Promise<GLTF>, readonly budget = MOBILE_BUDGET, private dispose = disposeModel, private estimate = estimateModel, private retainReferenced = false) {}
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
   snapshot = () => this.version;
   get(url: string, claim?: symbol): AssetState | undefined {
     const entry = this.entries.get(url);
-    if (!entry?.value || !claim) return entry;
+    if (this.retainReferenced || !entry?.value || !claim) return entry;
     let triangles = 0;
     const claims = [...this.entries.values()].flatMap(asset => asset.value ? [...asset.claims].map(([id, priority]) => ({ id, priority, triangles: asset.triangles })) : []).sort((a, b) => b.priority - a.priority);
     for (const item of claims) {
@@ -53,7 +58,7 @@ export class ModelAssetStore {
         entry!.idleAt = Date.now();
         if (entry!.phase === 'queued' || entry!.phase === 'error' || entry!.phase === 'deferred') this.entries.delete(url);
       }
-      this.sweep(); this.changed(); this.pump();
+      this.sweep(this.retainReferenced && this.status().bytes > this.budget.bytes); this.changed(); this.pump();
     };
   }
   private remove(url: string, entry: Entry) {
@@ -92,11 +97,11 @@ export class ModelAssetStore {
         const cost = this.estimate(model);
         this.sweep(true);
         const resident = this.status();
-        if (cost.bytes > this.budget.bytes || cost.triangles > this.budget.triangles) {
+        if (!this.retainReferenced && (cost.bytes > this.budget.bytes || cost.triangles > this.budget.triangles)) {
           this.dispose(model);
           throw Error('Model exceeds the mobile scene budget. Use a prepared preview/standard asset.');
         }
-        if (cost.bytes + resident.bytes > this.budget.bytes) {
+        if (!this.retainReferenced && cost.bytes + resident.bytes > this.budget.bytes) {
           this.dispose(model);
           entry.needed = cost; entry.phase = 'deferred';
           entry.error = Error('Waiting for model memory budget; retaining preview.');

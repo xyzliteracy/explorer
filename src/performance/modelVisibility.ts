@@ -7,9 +7,11 @@ const center = new Vector3();
 const box = new Box3(new Vector3(-.5, -.5, -.5), new Vector3(.5, .5, .5));
 
 /** Uses the declared fitted box, including rotation, before the asset exists. */
-export function modelScreenPixels(camera: Camera, worldMatrix: Matrix4, height: number) {
+export function modelScreenPixels(camera: Camera, worldMatrix: Matrix4, height: number, margin = 1) {
   camera.updateMatrixWorld();
-  matrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+  matrix.copy(camera.projectionMatrix);
+  matrix.elements[0] /= margin; matrix.elements[5] /= margin;
+  matrix.multiply(camera.matrixWorldInverse);
   frustum.setFromProjectionMatrix(matrix);
   box.getBoundingSphere(sphere).applyMatrix4(worldMatrix);
   if (!frustum.intersectsSphere(sphere)) return 0;

@@ -96,3 +96,23 @@ describe('shared asset ownership and mobile budgets', () => {
     expect(dispose).toHaveBeenCalledTimes(1); expect(load).toHaveBeenCalledTimes(1); expect(store.status().total).toBe(0);
   });
 });
+
+it('keeps required scene assets and repeated instances visible over soft budgets', async () => {
+  const dispose = vi.fn();
+  const load = vi.fn(async () => model(80, 80));
+  const store = new ModelAssetStore(load, { bytes: 100, triangles: 100, concurrent: 1, idleMs: 50 }, dispose, cost, true);
+  stores.push(store);
+  const first = Symbol(), second = Symbol(), higherPriority = Symbol();
+  const releaseA = store.acquire('a', 500, first);
+  const releaseDuplicate = store.acquire('a', 500, second);
+  const releaseB = store.acquire('b', 1000, higherPriority);
+  await flush();
+  expect(store.get('a', first)?.value).toBeDefined();
+  expect(store.get('a', second)?.value).toBeDefined();
+  expect(store.get('b', higherPriority)?.value).toBeDefined();
+  expect(store.status()).toMatchObject({ ready: 2, bytes: 160, errors: [] });
+  expect(load).toHaveBeenCalledTimes(2);
+  expect(dispose).not.toHaveBeenCalled();
+  releaseA(); releaseDuplicate(); releaseB();
+  store.close(); expect(dispose).toHaveBeenCalledTimes(2);
+});

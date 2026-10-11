@@ -1,27 +1,28 @@
-import { Component, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ErrorInfo, type ReactNode } from 'react';
-import { Html } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
-import { useModelAsset, useSelectedModelAsset } from '../performance/ModelRuntime';
-import { requestedModelTier, requestedTourModelTier, modelScreenPixels, modelTierSource, type ModelTier } from '../performance/modelVisibility';
+import { Component, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ErrorInfo, type ReactNode } from 'react';
+import { useModelAsset, useModelPresentation, useModelRetryGeneration, useModelMemoryPressure, useModelSceneRevealed } from '../performance/ModelRuntime';
+import { modelScreenPixels, type ModelTier } from '../performance/modelVisibility';
+import { modelOccluded } from '../performance/modelOcclusion';
+import { criticallyUnderpoweredDevice } from '../performance/renderQuality';
 import type { ThreeEvent } from '@react-three/fiber';
 import { SkeletonUtils } from 'three-stdlib';
 import { Box3, Vector3, Color, type Material, type Mesh, type Object3D, type Group } from 'three';
 import type { SpatialNode } from '../model/SpatialNode';
-import { originalModelSource, resolveModelVariants } from '../model/modelVariants';
-import { TOUR_DWELL_MS, useTourModelFocus } from '../performance/TourModelFocus';
+import { modelVariantSource, originalModelSource, resolveModelVariants } from '../model/modelVariants';
 import { useAssetResolver } from '../assets';
 import { modelFitTransformFromBounds, renderedModelPrecisionScale } from './modelFit';
 import { shouldSelectFromClick } from './selectionClick';
 
-function ModelBox({ color }: { color: string }) {
-  return <mesh><boxGeometry /><meshStandardMaterial color={color} wireframe transparent opacity={0.45} /></mesh>;
+function ModelFailure({ error }: { error?: Error }) {
+  useModelPresentation(false, error);
+  return null;
 }
 
-class ModelErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
-  state = { failed: false };
-  static getDerivedStateFromError() { return { failed: true }; }
+class ModelErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean; error?: Error }> {
+  state: { failed: boolean; error?: Error } = { failed: false };
+  static getDerivedStateFromError(error: Error) { return { failed: true, error }; }
   componentDidCatch(error: Error, info: ErrorInfo) { console.error('Unable to render GLB model.', error, info); }
-  render() { return this.state.failed ? <ModelBox color="#ef4444" /> : this.props.children; }
+  render() { return this.state.failed ? <ModelFailure error={this.state.error} /> : this.props.children; }
 }
 
 // Model presentation with injectable asset transport.
@@ -66,74 +67,89 @@ export function ModelObject({ scene, fit, align, node, targetScale, onPrecisionS
   return <group scale={fitted.scale}><group position={fitted.position}><primitive object={imported.scene} dispose={null} /></group></group>;
 }
 
-export function StreamingModel({ node, tier, resolved, selected, tourOriginal = false, tourMode = false, onPrecisionScaleChange }: { tourOriginal?: boolean; tourMode?: boolean; node: SpatialNode; tier: ModelTier; resolved: boolean; selected: boolean; onPrecisionScaleChange?: (value: number | undefined) => void }) {
+export function StreamingModel({ node, tier, resolved, originalNeeded = false, onRetainOriginal, onPrecisionScaleChange }: { onRetainOriginal?: () => void; originalNeeded?: boolean; tourOriginal?: boolean; tourMode?: boolean; node: SpatialNode; tier: ModelTier; resolved: boolean; selected: boolean; onPrecisionScaleChange?: (value: number | undefined) => void }) {
   const resolveModelUrl = useAssetResolver();
   const model = node.model!;
-  const variants = resolveModelVariants(model);
-  const source = modelTierSource(variants, tier);
+  // The textured baseline never depends on the camera. Original fidelity is
+  // promoted separately and may be released only after sustained absence.
+  const source = tier === 'preview' ? resolveModelVariants(model).previewSource
+    : model.detailSource ?? (model.source && modelVariantSource(model.source, 'detail'));
   const resolve = (url: string | undefined) => url ? (resolved ? url : resolveModelUrl(url)) : undefined;
-  const previewUrl = tier !== 'none' ? resolve(variants.previewSource) : undefined;
   const targetUrl = resolve(source);
-  const preview = useModelAsset(previewUrl, selected ? 3000 : 1000);
-  const target = useModelAsset(targetUrl === previewUrl ? undefined : targetUrl, selected ? 2000 : tier === 'detail' ? 100 : 500, selected ? 2000 : tier === 'detail' ? 900 : 500);
-  // Only inferred variants fall back to the base asset; explicit variants retain
-  // their existing error/upgrade behavior. The store shares requests across nodes.
-  const inferredTarget = tier === 'preview' ? !model.previewSource : tier === 'detail' && !model.detailSource;
-  const targetFailed = targetUrl === previewUrl ? preview?.error : target?.error;
-  const fallbackUrl = tier !== 'none' && inferredTarget && targetFailed ? resolve(variants.source) : undefined;
-  const fallback = useModelAsset(fallbackUrl === targetUrl || fallbackUrl === previewUrl ? undefined : fallbackUrl, selected ? 2000 : 500);
-  const original = useSelectedModelAsset((tourMode ? tourOriginal : selected) && model.source ? resolve(originalModelSource(model.source)) : undefined);
-  const asset = original?.value ? original : target?.value ? target : fallback?.value ? fallback : preview?.value ? preview : undefined;
+  const target = useModelAsset(targetUrl, 2000);
+  // A missing explicit detail or inferred preview must not leave an empty slot.
+  const fallbackSource = tier === 'preview' ? model.source : model.source && originalModelSource(model.source);
+  const fallbackUrl = target?.error && source !== fallbackSource ? resolve(fallbackSource) : undefined;
+  const fallback = useModelAsset(fallbackUrl, 2000);
+  const originalUrl = originalNeeded && !model.detailSource && tier !== 'preview' && model.source ? resolve(originalModelSource(model.source)) : undefined;
+  const original = useModelAsset(originalUrl === targetUrl || originalUrl === fallbackUrl ? undefined : originalUrl, 1000);
+  const baseline = target?.value ? target : fallback?.value ? fallback : undefined;
+  const asset = original?.value ? original : baseline;
+  const revealed = useModelSceneRevealed();
+  useEffect(() => {
+    // Extremely aggressive inferred simplification is unsafe for close-up UV
+    // fidelity. Once inspected at original quality, preserve it for this model.
+    if (original?.value && target?.value && original.triangles > target.triangles * 32) onRetainOriginal?.();
+  }, [original?.value, original?.triangles, target?.value, target?.triangles, onRetainOriginal]);
+  const error = fallbackUrl ? fallback?.error : target?.error;
+  useModelPresentation(Boolean(asset?.value) && (revealed || !originalUrl || originalUrl === fallbackUrl || originalUrl === targetUrl || Boolean(original?.value || original?.error)), error);
   if (!asset?.value) {
-    const error = fallbackUrl ? fallback?.error : target?.error ?? preview?.error;
-    return <><ModelBox color={error ? '#efad44' : '#60a5fa'} />{error && <Html center><span role="status" title={error.message} style={{ display: 'block', width: 160, padding: 6, background: '#171c26', color: '#ffcf85', fontSize: 12 }}>{error.message.includes('budget') ? 'Use an optimized model for this device' : 'Model could not be loaded'}</span></Html>}</>;
+    return null;
   }
   return <ModelObject scene={asset.value.scene} fit={model.fit} align={model.align} node={node} targetScale={node.transform.scale} onPrecisionScaleChange={onPrecisionScaleChange} />;
 }
 
-export function ModelPrimitive({ node, onSelect, selectionEnabled = true, onPrecisionScaleChange, resolved = false, selected = false, maxTier = 'detail', tourMode = false }: { tourMode?: boolean; selected?: boolean; maxTier?: ModelTier; node: SpatialNode; onSelect?: (id: string) => void; selectionEnabled?: boolean; onPrecisionScaleChange?: (id: string, scale: number | undefined) => void; resolved?: boolean }) {
-  const resolveModelUrl = useAssetResolver();
+export function ModelPrimitive({ node, onSelect, selectionEnabled = true, onPrecisionScaleChange, resolved = false, selected = false, tourMode = false }: { tourMode?: boolean; selected?: boolean; maxTier?: ModelTier; node: SpatialNode; onSelect?: (id: string) => void; selectionEnabled?: boolean; onPrecisionScaleChange?: (id: string, scale: number | undefined) => void; resolved?: boolean }) {
   const model = node.model!;
   const { position, rotation, scale } = node.transform;
+  const [critical] = useState(criticallyUnderpoweredDevice);
+  const recovery = useModelRetryGeneration();
+  const pressure = useModelMemoryPressure();
   const group = useRef<Group>(null);
-  const [tier, setTier] = useState<ModelTier>('none');
-  const tourFocus = useTourModelFocus(node.id, group, tourMode);
-  const pendingTier = useRef<ModelTier>('none');
-  const unloadTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  useEffect(() => {
-    clearTimeout(unloadTimer.current);
-    unloadTimer.current = undefined;
-    return () => clearTimeout(unloadTimer.current);
-  }, [tourMode, maxTier, selected, model.source]);
-  useFrame(({ camera, size }) => {
-    if (!group.current) return;
+  const [originalNeeded, setOriginalNeeded] = useState(false);
+  const [retainOriginal, setRetainOriginal] = useState(false);
+  const preserveOriginal = useCallback(() => setRetainOriginal(true), []);
+  const coldTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const guarded = useRef(false);
+  const pressureRef = useRef(pressure);
+  pressureRef.current = pressure;
+  useEffect(() => { setRetainOriginal(false); return () => { clearTimeout(coldTimer.current); coldTimer.current = undefined; }; }, [model.source]);
+  useFrame(({ camera, size, scene, gl }) => {
+    if (!group.current || critical || model.detailSource) return;
     group.current.updateWorldMatrix(true, false);
     const pixels = modelScreenPixels(camera, group.current.matrixWorld, size.height);
-    const next = tourMode
-      ? requestedTourModelTier(pixels, tier, tourFocus.focused, tourFocus.sustained, maxTier === 'preview')
-      : requestedModelTier(pixels, tier, selected, maxTier);
-    const levels: ModelTier[] = ['none', 'preview', 'standard', 'detail'];
-    const degrading = levels.indexOf(next) < levels.indexOf(tier);
-    if (degrading && (tourMode || next === 'none')) {
-      pendingTier.current = next;
-      if (unloadTimer.current === undefined) unloadTimer.current = setTimeout(() => {
-        unloadTimer.current = undefined;
-        setTier(pendingTier.current);
-      }, tourMode ? TOUR_DWELL_MS : 750);
-    } else {
-      clearTimeout(unloadTimer.current);
-      unloadTimer.current = undefined;
-      if (next !== tier) setTier(next);
+    const ahead = modelScreenPixels(camera, group.current.matrixWorld, size.height, 1.75);
+    // Prefetch a wide guard around nearby models; once promoted, retain full
+    // fidelity for the entire visible interval, even when its screen size shrinks.
+    const occluded = Boolean(!retainOriginal && !selected && (pixels > 0 || ahead >= 400) && scene && gl && modelOccluded(camera, scene, group.current.matrixWorld, gl.info.render.frame));
+    guarded.current = retainOriginal || (!occluded && (pixels > 0 || ahead >= 400)) || selected;
+    if (selected || (!occluded && (pixels >= 400 || ahead >= 400))) {
+      if (!originalNeeded) setOriginalNeeded(true);
+    }
+    if (guarded.current || !pressure || !originalNeeded) {
+      clearTimeout(coldTimer.current); coldTimer.current = undefined;
+    } else if (coldTimer.current === undefined) {
+      coldTimer.current = setTimeout(() => {
+        coldTimer.current = undefined;
+        if (group.current) {
+          group.current.updateWorldMatrix(true, false);
+          const hidden = Boolean(scene && gl && modelOccluded(camera, scene, group.current.matrixWorld, gl.info.render.frame));
+          if (!hidden && (modelScreenPixels(camera, group.current.matrixWorld, size.height) > 0 ||
+              modelScreenPixels(camera, group.current.matrixWorld, size.height, 1.75) >= 400)) return;
+        }
+        if (!guarded.current && pressureRef.current) setOriginalNeeded(false);
+      }, 8000);
     }
   });
+  const tier: ModelTier = critical ? 'preview' : 'detail';
   const handlePrecisionScaleChange = useCallback(
     (precisionScale: number | undefined) => onPrecisionScaleChange?.(node.id, precisionScale),
     [node.id, onPrecisionScaleChange],
   );
   function handleClick(event: ThreeEvent<MouseEvent>) { event.stopPropagation(); if (shouldSelectFromClick(selectionEnabled, event)) onSelect?.(node.id); }
   return <group ref={group} position={position} rotation={rotation} scale={scale} onClick={handleClick} userData={{ spatialNodeId: node.id, model: model.source }}>
-    <ModelErrorBoundary key={`${model.source}:${model.previewSource}:${model.detailSource}:${model.fit}:${model.align}`}>
-      <Suspense fallback={<ModelBox color="#60a5fa" />}><StreamingModel node={node} tier={tier} resolved={resolved} selected={selected} tourOriginal={tourFocus.original && maxTier !== 'preview'} tourMode={tourMode} onPrecisionScaleChange={handlePrecisionScaleChange} /></Suspense>
+    <ModelErrorBoundary key={`${model.source}:${model.previewSource}:${model.detailSource}:${model.fit}:${model.align}:${recovery}`}>
+      <Suspense fallback={<ModelFailure />}><StreamingModel node={node} tier={tier} originalNeeded={originalNeeded} onRetainOriginal={preserveOriginal} resolved={resolved} selected={selected} tourMode={tourMode} onPrecisionScaleChange={handlePrecisionScaleChange} /></Suspense>
     </ModelErrorBoundary>
     <mesh userData={{ povCollisionIgnored: true }}>
       <boxGeometry />

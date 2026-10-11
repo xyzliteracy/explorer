@@ -8,8 +8,10 @@ describe('quality and selected model residency', () => {
     expect(defaultQuality(4, 8)).toBe('balanced');
     expect(defaultQuality(8, 4)).toBe('balanced');
     expect(defaultQuality()).toBe('balanced');
-    expect(defaultQuality(2, 8, true)).toBe('low');
-    expect(defaultQuality(8, 2)).toBe('low');
+    expect(defaultQuality(2, 8, true)).toBe('balanced');
+    expect(defaultQuality(2, 2)).toBe('low');
+    expect(defaultQuality(1, 8)).toBe('low');
+    expect(defaultQuality(8, 2)).toBe('balanced');
     expect(isRenderQuality('ultra')).toBe(false);
   });
   it('uses device limits without consulting a saved viewer override', () => {

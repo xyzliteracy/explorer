@@ -1,7 +1,7 @@
-import { Texture, type Material, type Mesh } from 'three';
+import { Texture, type Material, type Mesh, type Object3D } from 'three';
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
-export function modelResources(model: Pick<GLTF, 'scenes'>) {
+export function modelResources(model: { scenes: readonly Object3D[] }) {
   const geometries = new Set<Mesh['geometry']>();
   const materials = new Set<Material>();
   const textures = new Set<Texture>();
