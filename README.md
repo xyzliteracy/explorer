@@ -24,52 +24,51 @@ this directory on any static web host. `npm run preview` serves it locally.
 
 ## Shared core
 
-Tour quality uses two observer-centered rings: the nearest model's declared
-fitted box intersected by the camera's center ray, and all other visible models.
-Offscreen and tiny-object screen-size hysteresis still determines residency.
+Tours and ordinary navigation share the same model-quality policy. Normal devices
+keep an explicit `model-detail` asset or inferred `<stem>.detail.glb` as a stable
+textured baseline. Missing details fall back to originals, subject to constrained
+device memory checks. The runtime does not select `.standard` variants.
+Previews require critical capability evidence: RAM ≤1 GiB, or RAM ≤2 GiB together
+with ≤2 logical CPU cores. An iPhone, mobile viewport, or missing memory hint
+alone never selects previews.
 
-| Device profile | Center / outer ring | After 2 seconds of center focus |
-| --- | --- | --- |
-| Normal | detail / standard | original / detail |
-| Underpowered (`low`) | standard / preview | detail / standard |
+The former center/outer quality rings and two-second focus/downgrade timers no
+longer apply. Nearby visible models covering at least 400 CSS pixels can request
+originals after required baselines are decoded. Other devices also prefetch within
+a 1.75× guard frustum; constrained devices request only models actually in view.
+Visible requests outrank guard-only requests.
 
-The sustained boost applies to every visible model while center focus is held.
-Underpowered tours never request an original. The existing capability detection
-selects `low` for devices reporting at most 2 GB memory or at most 2 CPU cores;
-DPR limits remain unchanged. Outside tours, the existing quality ceilings and
-selection behavior apply.
+A displayed original remains protected while visible, including when another
+model loads or its screen size shrinks. Under memory pressure, an original may
+be released after eight continuous seconds outside the view and guard region,
+or fully concealed by a verified solid wall. Returning before that interval
+completes cancels release. The textured baseline stays resident. Inferred
+simplification over 32× retains an original once granted; this fidelity guard
+does not override admission limits.
 
-Tour models keep their prepared quality until a lower tier has been requested
-continuously for two seconds, including when leaving the view. Returning before
-that delay cancels the downgrade; prepared upgrades remain immediate. When focus
-moves, ring downgrade timers start immediately, so the original's away grace does
-not add another two seconds to them.
+Original upgrades have bounded residency. iOS, RAM ≤4 GiB, and unavailable memory
+hints use a 160 MiB original allowance and 256 MiB combined model estimate.
+Other devices allow 1,024 MiB of originals / 1,536 MiB combined. GLB metadata is
+checked before optional decode and GPU upload; constrained required-model
+fallbacks receive these checks too. These estimates are not actual process RAM
+caps. Denied upgrades keep textured detail; oversized required scenes remain
+covered by a preparation/error screen. The supplied bed detail has a known UV
+defect that remains when its original cannot safely be admitted.
 
-After two seconds of uninterrupted center focus on normal devices, the original
-`<stem>.glb` loads through the existing single-original store. Prepared assets
-remain loading/error fallbacks. Looking away retains the old original for two
-seconds; returning cancels its release. Only one tour original is requested at a
-time. Originals retain the existing uncapped selection-store policy. Prepared
-memory/triangle budgets, decoder limits, shared caching, eviction, demand
-rendering, and non-tour selection behavior remain unchanged. Ring tiers are
-requests, subject to budget admission and asset availability.
+Refresh/unmount cancels pending work and disposes late results before GPU upload.
+Context loss pauses loading; recovery retries interrupted work. Shader preparation
+is cancellable. Decode work is serialized, shared instances retain resources
+through leases, and demand rendering stops at rest. Removed baselines expire
+after five seconds or sooner under pressure/new loading; released originals
+have no additional cache grace.
 
-After the tour's two-second offscreen delay, model references are released;
-offscreen objects do not retain a rendered preview. Unreferenced prepared assets
-are disposed after the existing five-second cache grace period, or sooner under
-memory pressure. Shared assets remain resident while other instances need them.
-Originals have no additional cache grace. Non-tour offscreen release still uses
-the existing 750 ms delay.
-
-This is a camera-based approximation of visual attention, not eye tracking or
-mesh-level occlusion detection. The timing constant is `TOUR_DWELL_MS` in
-`src/performance/TourModelFocus.tsx`.
-
-Regression coverage checks nearest-center arbitration, uninterrupted focus,
-look-away cancellation, both device profiles and rings, original loading gates,
-and timer completion while demand rendering is idle. Validation for this change:
-`npm test` passed all 288 tests, and `npm run build` passed TypeScript compilation
-and the production Vite build.
+The former `TourModelFocus` implementation is not used by `ModelPrimitive`.
+Current policy lives in `src/scene/ModelPrimitive.tsx`,
+`src/performance/ModelRuntime.tsx`, and `src/performance/modelUpgradeMemory.ts`.
+The sibling explorer's `docs/performance/README.md` provides validation procedures
+and limitations. Latest validation passed 321 viewer unit tests and the production
+build, plus explorer Pap navigation, refresh, and context-recovery checks.
+Physical iPhone testing remains necessary to confirm Safari crash resolution.
 
 `@xyz/viewer` exports `createSpatialDocument`, `SceneRoot`, and `AssetResolver`.
 Source subpath exports expose the parser, spatial model, camera/navigation,
