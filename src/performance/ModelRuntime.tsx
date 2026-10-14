@@ -15,7 +15,7 @@ import { criticallyUnderpoweredDevice } from './renderQuality';
 const Context = createContext<ModelAssetStore | undefined>(undefined);
 const SelectedContext = createContext<ModelAssetStore | undefined>(undefined);
 const direct = async (url: string) => url;
-export const PERFORMANCE_CANVAS = { frameloop: 'demand' as const, dpr: [1, 1.5] as [number, number], shadows: false, gl: { antialias: true } };
+export const PERFORMANCE_CANVAS = { frameloop: 'demand' as const, dpr: [1, 1.5] as [number, number], shadows: true, gl: { antialias: true } };
 
 type Presentation = { ready: boolean; error?: Error };
 class Presentations {

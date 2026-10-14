@@ -16,6 +16,10 @@ import type {
 const SUPPORTED_OBJECT_PROPERTIES = new Set([
   ...SUPPORTED_MATERIAL_KEYS,
   'view-point',
+  'light-source',
+  'light-intensity',
+  'light-color',
+  'light-distance',
   'geometry',
   'box-radius',
   'puff',
@@ -37,6 +41,7 @@ const SUPPORTED_OBJECT_PROPERTIES = new Set([
 ]);
 
 export interface XyzDslObjectPropertiesSpec {
+  light?: import('./types').XyzDslLightSpec;
   viewPoint?: boolean;
   material: XyzDslMaterialSpec;
   geometry: XyzDslGeometrySpec;
@@ -64,7 +69,25 @@ export function parseObjectProperties(source: string): XyzDslObjectPropertiesSpe
   const marker = declarations.filter(({ property }) => property === 'view-point').at(-1);
   if (marker && !['true', 'false'].includes(marker.value)) diagnostics.push('view-point must be true or false.');
 
+  const lightValue = declarations.filter(d => d.property === 'light-source').at(-1)?.value;
+  if (lightValue !== undefined && !['true', 'false', 'point'].includes(lightValue)) diagnostics.push('light-source must be true, false, or point.');
+  const enabled = lightValue === 'true' || lightValue === 'point';
+  const numericLight = (key: string, fallback: number) => {
+    const raw = declarations.filter(d => d.property === key).at(-1)?.value;
+    if (raw === undefined) return fallback;
+    const value = Number(raw);
+    if (!Number.isFinite(value) || value < 0) { diagnostics.push(`${key} must be a finite non-negative number.`); return fallback; }
+    return value;
+  };
+  const intensity = numericLight('light-intensity', 10);
+  const distance = numericLight('light-distance', 0);
+  const colorDeclaration = declarations.filter(d => d.property === 'light-color').at(-1);
+  const lightMaterial = parseMaterialDeclaration(colorDeclaration ? [{ ...colorDeclaration, property: 'color' }] : []);
+  diagnostics.push(...lightMaterial.diagnostics);
+  if (!enabled && declarations.some(d => d.property.startsWith('light-') && d.property !== 'light-source')) diagnostics.push('Light options require light-source: true or point.');
+
   return {
+    light: enabled ? { intensity, distance, color: lightMaterial.color ?? '#ffffff' } : undefined,
     viewPoint: marker?.value === 'true',
     material,
     geometry,

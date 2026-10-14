@@ -105,6 +105,7 @@ export function createSpatialDocument(source: string): SpatialDocument {
         id: object.id,
         source: object.source,
         box: object.box,
+        light: object.renderable ? object.light : undefined,
         material: object.material,
         content: object.content,
         model: object.model.source ? object.model : undefined,
@@ -115,7 +116,7 @@ export function createSpatialDocument(source: string): SpatialDocument {
         bounds: boundsFromTransformedBox(object.box, worldTransform),
         namespacePath: object.namespacePath,
         parentNamespacePath: object.parentNamespacePath,
-        renderable: object.renderable && !object.viewPoint,
+        renderable: object.renderable && !object.viewPoint && !object.light,
         children: [],
         metadata: {
           viewPoint: Boolean(object.viewPoint && object.renderable),

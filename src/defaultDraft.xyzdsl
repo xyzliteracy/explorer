@@ -11,7 +11,7 @@
 "Pap/FloralLights/+183c+34c/+232c+671m/+193c+301m":"model: lepapayer/floral_lights.glb; rotation: 0, 0, 0"
 "Pap/TriadLights/+421c+47c/+24d+591m/+193c+301m":"model: lepapayer/abstract_lights.glb; rotation: 0, 0, 0"
 
-
+"Pap/FloralLightSource/+183c+34c/+2075m+7c/+193c+301m":"light-source: true; light-color: #ffffff; light-intensity: 10; light-distance: 0"
 
 
 "Pap/FrontWall/+0+109d/+0+300c/+0+1c":"color: white;"

@@ -7,7 +7,8 @@ import { Canvas } from '@react-three/fiber';
 import type { SpatialDocument } from '../model/SpatialDocument';
 import { dimensionsFromNodes } from '../model/room';
 import { XyzCornerGrid } from './XyzCornerGrid';
-import { Lighting } from './Lighting';
+import { Lighting, lightNodes } from './Lighting';
+import { LightSourceMarker } from './LightSourceMarker';
 import { SpatialScene } from './SpatialScene';
 import { nodesForRoomSizing } from './roomSizing';
 import { cameraClipPlanes, cameraSceneScale } from './cameraScale';
@@ -77,6 +78,7 @@ export function SceneRoot({ document: spatialDocument, selectedNodeId, onSelectN
   );
   const sceneScale = cameraSceneScale(cameraSizingNodes, selectedNode, DEFAULT_CAMERA_POSITION);
   const clips = cameraClipPlanes(sceneScale, cameraSizingNodes, DEFAULT_CAMERA_POSITION);
+  const lights = useMemo(() => lightNodes(spatialDocument), [spatialDocument]);
   const points = useMemo(() => viewPoints(spatialDocument), [spatialDocument]);
   const orbitRef = useRef<OrbitControlType>(null);
   const tour = useViewPointTour(spatialDocument, points.length, mobile, editorMode);
@@ -104,13 +106,16 @@ export function SceneRoot({ document: spatialDocument, selectedNodeId, onSelectN
       <ModelRuntime onStatus={import.meta.env.DEV ? setAssetStatus : undefined}>
       <color attach="background" args={['#151820']} />
       <PerspectiveCamera ref={cameraRef} makeDefault position={DEFAULT_CAMERA_POSITION} fov={45} near={clips.near} far={clips.far} />
-      <Lighting />
+      <Lighting document={spatialDocument} />
       {editorMode && <XyzCornerGrid {...roomDimensions} />}
       <SpatialScene document={spatialDocument} selectedNodeId={selectedNodeId} onSelectNode={onSelectNode} selectionEnabled={cameraMode === 'orbit'} tourMode={Boolean(point)} maxTier={point && quality !== 'low' ? 'detail' : QUALITY[quality].maxTier} onPrecisionScaleChange={handleModelPrecisionScaleChange}/>
       {editorMode && !point && points.map(node => (
         <ViewPointMarker key={node.id} node={node} selected={node.id === selectedNodeId} onSelect={onSelectNode} />
       ))}
-      {selectedNode && !point && (editorMode || !selectedNode.metadata?.viewPoint) ? <SelectionBounds node={selectedNode} /> : null}
+      {editorMode && !point && lights.map(node => (
+        <LightSourceMarker key={node.id} node={node} selected={node.id === selectedNodeId} onSelect={onSelectNode} />
+      ))}
+      {selectedNode && !point && (editorMode || (!selectedNode.metadata?.viewPoint && !selectedNode.light)) ? <SelectionBounds node={selectedNode} /> : null}
       {cameraMode === 'orbit' ? <OrbitControls ref={orbitRef} makeDefault target={orbitTarget} maxPolarAngle={Math.PI} /> : null}
       <ViewPointControls point={point} orbitTarget={tour.orbitTarget} onTraverse={tour.traverse} onExit={tour.exit} />
       <CameraClipController nodes={cameraSizingNodes} scale={sceneScale} />

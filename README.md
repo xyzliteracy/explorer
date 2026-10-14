@@ -149,3 +149,48 @@ The explorer Pages workflow runs its tests and production build against the core
 checkout before deployment. This check belongs to the consumer repository so its
 workflow token can read the application source. Core CI tests shared renderer
 dispatch and host adapters without requiring access to consumer repositories.
+
+## Lights and enclosed interiors
+
+Declare an invisible point emitter using the same spatial paths as view points:
+
+```xyz
+"lamp/+2+1c/+2+1c/+2+1c" : "light-source: true; light-color: #fff0d0; light-intensity: 10; light-distance: 0"
+```
+
+`light-source` accepts `true` or `point`; `false` leaves an ordinary object.
+The box center sets the source position, including parent transforms. Its size
+is an authoring handle, not a glowing mesh. In orbital editor mode, light
+sources show an orange bounding box (yellow when selected), with the same
+Cmd/Ctrl-click selection as view points. These helpers are hidden in viewing
+and tour modes. Light settings are explicit on the
+source declaration (not inherited namespace styles). Intensity defaults to 10
+candelas; distance defaults to 0 (no cutoff), in metres. Both must be finite and
+non-negative; intensity 0 disables illumination. Color defaults to white and
+uses the existing material color syntax. Lights are excluded from solid geometry,
+CSG, and collision. Referenced subtree lights retain their transformed positions.
+
+All three viewers share shadow rendering. No directional or point lights are
+created by default. A subtle white ambient fill (intensity 0.12) is present
+everywhere, including sealed interiors, and casts no shadows. Scenes remain
+dimly visible without explicit light sources; point lights add local illumination
+and shadows. Point shadows use a scene-fitted distance range and small depth/normal
+offsets, capped by declared solid dimensions, to reduce self-shadow striping.
+Shadow maps use 2048 pixels per cube face; this costs four times the shadow-map
+pixels of the previous 1024 setting. Hardware texture limits can reduce the
+actual resolution. Thin imported mesh details and CSG shell thickness are not
+fully represented by authoring bounds, so extreme scenes can still require tuning.
+Imported models cast and receive shadows. Their camera-independent baseline
+stays loaded off camera to preserve occlusion; original-fidelity upgrades follow
+the shared memory policy. Shadow passes and retained baselines cost GPU time
+and memory; each point source renders six
+shadow views. Imported emissive/unlit materials, HTML content, missing assets,
+coarse preview geometry and finite shadow-map precision can still affect the
+appearance of lighting. Ambient fill is a visibility aid, not simulated indirect
+light bounces.
+
+Regression coverage includes `src/scene/Lighting.test.ts` and a GPU enclosure
+check in the sibling explorer: run `npm run test:performance -- lighting.spec.ts`
+from `explorer` with Chrome installed. The GPU test checks sealed panel and CSG
+rooms for dim ambient visibility without an interior light, and brighter
+illumination when an interior light is added.

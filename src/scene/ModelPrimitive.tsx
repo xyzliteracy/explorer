@@ -37,8 +37,8 @@ export function ModelObject({ scene, fit, align, node, targetScale, onPrecisionS
       if ('skeleton' in object) ownedSkeletons.add(object.skeleton as import('three').Skeleton);
       if (!('isMesh' in object)) return;
       const mesh = object as Mesh;
-      mesh.castShadow = false;
-      mesh.receiveShadow = false;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
       if (node.material.color === undefined && node.material.metalness === undefined && node.material.roughness === undefined) return;
       const materials = (Array.isArray(mesh.material) ? mesh.material : [mesh.material]).map((sourceMaterial) => {
         const material = sourceMaterial.clone() as Material & { color?: Color; metalness?: number; roughness?: number };

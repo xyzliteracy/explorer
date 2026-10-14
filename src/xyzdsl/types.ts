@@ -78,7 +78,14 @@ export interface XyzDslReferenceSpec {
   diagnostics: string[];
 }
 
+export interface XyzDslLightSpec {
+  intensity: number;
+  color: string | number;
+  distance: number;
+}
+
 export interface SpatialObject {
+  light?: XyzDslLightSpec;
   viewPoint?: boolean;
   id: string;
   source: string;

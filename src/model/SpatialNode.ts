@@ -12,6 +12,7 @@ export interface SpatialBounds {
 }
 
 export interface SpatialNode {
+  light?: import('../xyzdsl/types').XyzDslLightSpec;
   id: string;
   source: string;
   box: XyzDslBoxSpec;

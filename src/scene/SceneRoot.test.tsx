@@ -3,8 +3,11 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createSpatialDocument } from '../model/createSpatialDocument';
 
-vi.mock('@react-three/fiber', async importOriginal => ({ ...await importOriginal<typeof import('@react-three/fiber')>(), Canvas: () => null }));
+const canvas = vi.hoisted(() => ({ children: undefined as unknown }));
+vi.mock('@react-three/fiber', async importOriginal => ({ ...await importOriginal<typeof import('@react-three/fiber')>(), Canvas: ({ children }: { children: unknown }) => { canvas.children = children; return null; } }));
 import { SceneRoot } from './SceneRoot';
+import { LightSourceMarker } from './LightSourceMarker';
+import { SelectionBounds } from './SelectionBounds';
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 const source = `"+0+1/+0+1/+0+1":"view-point: true"
 "+2+1/+0+1/+0+1":"view-point: true"`;
@@ -50,4 +53,25 @@ describe('tour viewer controls', () => {
     expect(screen.getByRole('button', { name: /Start tour/ })).toBeDefined();
     expect(screen.queryByRole('combobox')).toBeNull();
   });
+});
+
+function canvasElements(value: any): any[] {
+  if (Array.isArray(value)) return value.flatMap(canvasElements);
+  if (!value || typeof value !== 'object') return [];
+  return [value, ...canvasElements(value.props?.children)];
+}
+
+it('shows light boxes only in the orbital editor, including when a light is selected', () => {
+  viewport(false);
+  const document = createSpatialDocument(source + '\n"lamp/+3+1/+0+1/+0+1":"light-source: true"');
+  const light = document.nodes.find(node => node.light)!;
+  const view = render(<SceneRoot {...props} document={document} selectedNodeId={light.id} />);
+  expect(canvasElements(canvas.children).filter(element => element.type === LightSourceMarker || element.type === SelectionBounds)).toHaveLength(0);
+  view.rerender(<SceneRoot {...props} editorMode document={document} selectedNodeId={light.id} />);
+  const markers = canvasElements(canvas.children).filter(element => element.type === LightSourceMarker);
+  expect(markers).toHaveLength(1);
+  expect(markers[0].props.node).toBe(light);
+  expect(markers[0].props.selected).toBe(true);
+  fireEvent.click(screen.getByRole('button', { name: /Start tour/ }));
+  expect(canvasElements(canvas.children).filter(element => element.type === LightSourceMarker || element.type === SelectionBounds)).toHaveLength(0);
 });

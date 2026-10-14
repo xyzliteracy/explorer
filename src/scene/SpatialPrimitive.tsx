@@ -4,7 +4,7 @@ import type { MeshStandardMaterialParameters } from 'three';
 import type { SpatialGeometry } from '../model/geometry';
 import { normalizedXyzDslStrength, normalizedRoundedBoxRadius } from './primitiveGeometry';
 import type { SpatialNode } from '../model/SpatialNode';
-import { defaultBoxMaterial, unionHighlightMaterial } from './materials';
+import { defaultBoxMaterial } from './materials';
 import { shouldSelectFromClick } from './selectionClick';
 
 interface SpatialPrimitiveProps {
@@ -43,7 +43,6 @@ export function materialParameters(node: SpatialNode): MeshStandardMaterialParam
     color: node.material.color ?? defaultBoxMaterial.color,
     metalness: node.material.metalness ?? defaultBoxMaterial.metalness,
     roughness: node.material.roughness ?? defaultBoxMaterial.roughness,
-    ...(node.unionGroupId ? unionHighlightMaterial : {}),
   };
 }
 
