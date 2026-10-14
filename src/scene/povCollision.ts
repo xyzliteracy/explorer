@@ -130,7 +130,7 @@ export function sweptSphereIntersectsScene(
   let endDistanceSquared = Infinity;
   scene.updateWorldMatrix(true, true);
   scene.traverse((object) => {
-    if (!(object instanceof Mesh) || !object.visible) return;
+    if (!(object instanceof Mesh) || (!object.visible && !object.userData.observableHidden)) return;
     if (!objectParticipatesInPovCollision(object)) return;
     const transforms: Matrix4[] = [];
     if (object instanceof InstancedMesh) {

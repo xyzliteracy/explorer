@@ -38,7 +38,10 @@ export interface XyzDslGeometrySpec {
 }
 
 
+export type XyzDslObservable = false | '+x' | '-x' | '+y' | '-y' | '+z' | '-z';
+
 export interface XyzDslMaterialSpec {
+  observable?: XyzDslObservable;
   color?: string | number;
   metalness?: number;
   roughness?: number;

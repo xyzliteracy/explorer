@@ -1,3 +1,4 @@
+import { useObservableMesh } from './observability';
 import { RoundedBoxGeometry } from '@react-three/drei';
 import type { ThreeEvent } from '@react-three/fiber';
 import type { MeshStandardMaterialParameters } from 'three';
@@ -48,6 +49,7 @@ export function materialParameters(node: SpatialNode): MeshStandardMaterialParam
 
 export function SpatialPrimitive({ node, onSelect, selectionEnabled = true }: SpatialPrimitiveProps) {
   const { position, rotation, scale } = node.transform;
+  const observableMesh = useObservableMesh(node);
   const material = materialParameters(node);
 
   function handleClick(event: ThreeEvent<MouseEvent>) {
@@ -57,6 +59,7 @@ export function SpatialPrimitive({ node, onSelect, selectionEnabled = true }: Sp
 
   return (
     <mesh
+      ref={observableMesh}
       castShadow
       receiveShadow
       position={position}

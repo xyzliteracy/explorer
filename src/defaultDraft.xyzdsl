@@ -1,6 +1,6 @@
 "Pap/+2+109d/+100c+300c/+10c+397c":""
 
-"Pap/Ceiling/+0+109d/+300c+1c/+0+397c":"color: white;"
+"Pap/Ceiling/+0+109d/+300c+1c/+0+397c":"color: white; observable: +y"
 "Pap/Plaster/+0+638c/+290c+5c/+0+397c":"color: white;"
 "Pap/PlasterCut/+5d+538c/+29d+5c/+5d+297c":"operation: subtraction"
 "Pap/Inner1/+10d+198c/+29d+5c/+9d+217c":"color: white;"
@@ -15,7 +15,7 @@
 
 
 "Pap/FrontWall/+0+109d/+0+300c/+0+1c":"color: white;"
-"Pap/BackWall/+0+109d/+0+300c/+397c+1c":"color: white;"
+"Pap/BackWall/+0+109d/+0+300c/+397c+1c":"color: white; observable: +z"
 "Pap/LeftWall/+0+1c/+0+300c/+0+397c":"color: white;"
 "Pap/RightWall/+109d+1c/+0+300c/+0+397c":"color: white;"
 "Pap/Flooring/+0+109d/+0+1c/+0+397c":"color: white;"

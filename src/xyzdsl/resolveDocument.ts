@@ -128,6 +128,7 @@ function mergeProperties(
       color: overrideMaterial.color ?? base.material.color,
       metalness: overrideMaterial.metalness ?? base.material.metalness,
       roughness: overrideMaterial.roughness ?? base.material.roughness,
+      observable: overrideMaterial.observable ?? base.material.observable,
     },
     geometry: mergeGeometry(base.geometry, overrideGeometry),
     content: mergeContent(base.content, override.content),

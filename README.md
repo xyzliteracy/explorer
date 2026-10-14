@@ -194,3 +194,38 @@ check in the sibling explorer: run `npm run test:performance -- lighting.spec.ts
 from `explorer` with Chrome installed. The GPU test checks sealed panel and CSG
 rooms for dim ambient visibility without an interior light, and brighter
 illumination when an interior light is added.
+
+## One-way observability for blocks and surfaces
+
+`observable` names the **local side from which you can see through** a primitive
+block. From the opposite side it renders normally. For example:
+
+```xyzdsl
+"Surface/+1+2/+1+2/+1+2" : "observable: true; color: gray"
+"Wall/+0+4/+0+3/+0+1c" : "observable: +z; color: gray"
+```
+
+Accepted values are `+x`, `-x`, `+y`, `-y`, `+z`, `-z`, `true` (alias for `+z`),
+and `false` (ordinary rendering, also the default). Invalid values produce a
+parser diagnostic. `Surface` is an ordinary namespace, not a special geometry.
+Use a thin box for a wall; zero thickness is not required.
+
+The decision uses the camera position relative to the block's center plane.
+For `+z`, a camera on the positive local Z side sees through the entire block;
+a camera on the negative side or exactly on the plane sees the block. This
+works for thick blocks as well as thin walls, and the axis follows the block's
+resolved rotation, including parent transforms. This is a camera-dependent
+cutaway, not glass or a physically simulated one-way mirror.
+
+The property inherits through namespaces and references like other material
+properties; `observable: false` explicitly cancels an inherited setting. It
+applies to built-in primitives and CSG results (using the base block's setting
+and center plane). Imported models and text/URL content currently do not apply
+this property.
+
+Implementation: the parser validates and normalizes the material property,
+the resolver merges it, and `scene/observability.ts` updates mesh visibility
+before rendering and model occlusion checks. On the see-through side the block
+also stops casting shadows and intercepting selection rays. Physical POV
+collision remains active on both sides. Existing scenes without the property
+retain their normal rendering.

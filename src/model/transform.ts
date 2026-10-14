@@ -42,7 +42,7 @@ export function identityTransform(): SpatialTransform {
   };
 }
 
-function matrixFromTransform(transform: SpatialTransform): Matrix4 {
+export function matrixFromTransform(transform: SpatialTransform): Matrix4 {
   const position = new Vector3(...transform.position);
   const rotation = new Quaternion().setFromEuler(new Euler(...transform.rotation, 'XYZ'));
   const scale = new Vector3(...transform.scale);

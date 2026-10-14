@@ -1,3 +1,4 @@
+import { useObservableMesh } from './observability';
 import { useMemo } from 'react';
 import type { ThreeEvent } from '@react-three/fiber';
 import type { CsgExpression } from '../model/csg';
@@ -13,6 +14,7 @@ interface CsgPrimitiveProps {
 
 export function CsgPrimitive({ expression, onSelect, selectionEnabled = true }: CsgPrimitiveProps) {
   const geometry = useMemo(() => evaluateCsgExpressionGeometry(expression), [expression]);
+  const observableMesh = useObservableMesh(expression.base);
   const material = materialParameters(expression.base);
 
   function handleClick(event: ThreeEvent<MouseEvent>) {
@@ -22,6 +24,7 @@ export function CsgPrimitive({ expression, onSelect, selectionEnabled = true }: 
 
   return (
     <mesh
+      ref={observableMesh}
       castShadow
       receiveShadow
       geometry={geometry}
