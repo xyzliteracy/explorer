@@ -3,7 +3,7 @@ import { parseXyzDslDeclaration } from './parser';
 import type { AxisName } from './types';
 
 const DECLARATION_PATTERN = /^(?<indent>\s*)"(?<path>[^"]+)"(?<middle>\s*:\s*)"(?<properties>[^"]*)"(?<suffix>\s*)$/;
-const AXIS_PATTERN = /^\+(?<offset>\d+(?:[dcm])?)\+(?<size>\d+(?:[dcm])?)$/;
+const AXIS_PATTERN = /^\+(?<offset>(?:\d+(?:[dcm])?)?)\+(?<size>(?:\d+(?:[dcm])?)?)$/;
 const MILLIMETRES_PER_UNIT = 1000;
 const MIN_SIZE = 0.001;
 const ROTATION_PRECISION = 1000;
@@ -18,7 +18,7 @@ interface DeclarationParts {
 
 interface AxisParts {
   offset: number;
-  size: number;
+  size: number | 'fill';
 }
 
 function splitLines(source: string): string[] {
@@ -92,13 +92,14 @@ function parseAxis(segment: string): AxisParts | undefined {
     return undefined;
   }
 
-  const offset = parsePathNumber(match.groups.offset);
-  const size = parsePathNumber(match.groups.size);
+  const offset = match.groups.offset ? parsePathNumber(match.groups.offset) : 0;
+  const size = match.groups.size ? parsePathNumber(match.groups.size) : 'fill';
 
   return { offset, size };
 }
 
 function formatAxis(axis: AxisParts): string {
+  if (axis.size === 'fill') return `+${axis.offset === 0 ? '' : formatPathNumber(axis.offset)}+`;
   return `+${formatPathNumber(axis.offset)}+${formatPathNumber(Math.max(MIN_SIZE, axis.size))}`;
 }
 
@@ -236,7 +237,7 @@ export function resizeDeclarationPath(source: string, lineNumber: number, axis: 
     source,
     lineNumber,
     updatePathAxes(parts.path, (currentAxis, value) =>
-      currentAxis === axis ? { ...value, size: Math.max(MIN_SIZE, value.size + delta) } : value,
+      currentAxis === axis && value.size !== 'fill' ? { ...value, size: Math.max(MIN_SIZE, value.size + delta) } : value,
     ),
   );
 }

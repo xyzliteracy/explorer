@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createSpatialDocument } from '../model/createSpatialDocument';
 
@@ -8,6 +8,9 @@ vi.mock('@react-three/fiber', async importOriginal => ({ ...await importOriginal
 import { SceneRoot } from './SceneRoot';
 import { LightSourceMarker } from './LightSourceMarker';
 import { SelectionBounds } from './SelectionBounds';
+import { PerspectiveCamera } from '@react-three/drei';
+import { CameraClipController } from './CameraClipController';
+import { SpatialScene } from './SpatialScene';
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 const source = `"+0+1/+0+1/+0+1":"view-point: true"
 "+2+1/+0+1/+0+1":"view-point: true"`;
@@ -60,6 +63,30 @@ function canvasElements(value: any): any[] {
   if (!value || typeof value !== 'object') return [];
   return [value, ...canvasElements(value.props?.children)];
 }
+
+it('uses room depth precision throughout a tour and restores distance-aware selection on exit', () => {
+  viewport(false);
+  const document = createSpatialDocument(source + '\n"Room/+0+109d/+0+3/+0+397c":""\n"Rug/+0+1/+0+1/+0+2c":"model: rug.glb"');
+  const rug = document.nodes.find(node => node.model)!;
+  render(<SceneRoot {...props} document={document} selectedNodeId={rug.id} />);
+  const element = (type: unknown) => canvasElements(canvas.children).find(child => child.type === type);
+  // Model bounds can be much thinner than the declared fitting box.
+  act(() => element(SpatialScene).props.onPrecisionScaleChange(rug.id, .001));
+  expect(element(PerspectiveCamera).props.near).toBeGreaterThan(.02);
+  expect(element(CameraClipController).props.selectionBounds).toEqual(rug.bounds);
+  expect(element(CameraClipController).props.scale).toBe(.001);
+  fireEvent.click(screen.getByRole('button', { name: /Start tour/ }));
+  expect(element(PerspectiveCamera).props.near).toBe(.05);
+  expect(element(CameraClipController).props.scale).toBe(10);
+  act(() => element(SpatialScene).props.onPrecisionScaleChange(rug.id, .002));
+  fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+  expect(element(PerspectiveCamera).props.near).toBe(.05);
+  expect(element(CameraClipController).props.scale).toBe(10);
+  fireEvent.click(screen.getByRole('button', { name: 'Exit tour' }));
+  expect(element(PerspectiveCamera).props.near).toBeGreaterThan(.02);
+  expect(element(CameraClipController).props.selectionBounds).toEqual(rug.bounds);
+  expect(element(CameraClipController).props.scale).toBe(.002);
+});
 
 it('shows light boxes only in the orbital editor, including when a light is selected', () => {
   viewport(false);

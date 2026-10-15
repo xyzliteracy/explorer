@@ -4,7 +4,7 @@ import type { AxisName, XyzDslAxisSpec, XyzDslBoxSpec, XyzDslPathSpec } from './
 const AXES = ['x', 'y', 'z'] as const;
 const PATH_NUMBER_PATTERN = /^(?:0|[1-9]\d*)(?:[dcm])?$/;
 const LEADING_ZERO_PATTERN = /^0\d+(?:[dcm])?$/;
-const AXIS_PATTERN = /^\+(?<offset>[^+]+)\+(?<size>[^+]+)$/;
+const AXIS_PATTERN = /^\+(?<offset>[^+]*)\+(?<size>[^+]*)$/;
 const AXIS_NUMBER_CANDIDATE_PATTERN = /^\d+(?:[dcm])?$/;
 const NAMESPACE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9+]*$/;
 
@@ -13,8 +13,8 @@ function isAxisSegment(segment: string): boolean {
 
   return Boolean(
     match?.groups &&
-      AXIS_NUMBER_CANDIDATE_PATTERN.test(match.groups.offset) &&
-      AXIS_NUMBER_CANDIDATE_PATTERN.test(match.groups.size),
+      (match.groups.offset === '' || AXIS_NUMBER_CANDIDATE_PATTERN.test(match.groups.offset)) &&
+      (match.groups.size === '' || AXIS_NUMBER_CANDIDATE_PATTERN.test(match.groups.size)),
   );
 }
 
@@ -32,7 +32,9 @@ export function parsePathNumber(raw: string): number {
   const suffix = /[dcm]$/.test(raw) ? raw.slice(-1) : '';
   const value = Number(suffix ? raw.slice(0, -1) : raw);
   const scale = suffix === 'd' ? DECIMETRES_PER_UNIT : suffix === 'c' ? CENTIMETRES_PER_UNIT : suffix === 'm' ? MILLIMETRES_PER_UNIT : 1;
-  return value / scale;
+  const result = value / scale;
+  if (!Number.isFinite(result)) throw new Error('Path numbers must be finite.');
+  return result;
 }
 
 export function parsePathAxisSpec(raw: string, axis: AxisName): XyzDslAxisSpec {
@@ -42,10 +44,10 @@ export function parsePathAxisSpec(raw: string, axis: AxisName): XyzDslAxisSpec {
     throw new Error(`Axis ${axis.toUpperCase()} must use +offset+size syntax.`);
   }
 
-  const offset = parsePathNumber(match.groups.offset);
-  const size = parsePathNumber(match.groups.size);
+  const offset = match.groups.offset === '' ? 0 : parsePathNumber(match.groups.offset);
+  const size = match.groups.size === '' ? 'fill' : parsePathNumber(match.groups.size);
 
-  if (size <= 0) {
+  if (size !== 'fill' && size <= 0) {
     throw new Error(`Axis ${axis.toUpperCase()} size must be greater than zero.`);
   }
 
@@ -55,14 +57,16 @@ export function parsePathAxisSpec(raw: string, axis: AxisName): XyzDslAxisSpec {
 function parseBoxSegments(segments: readonly string[], source: string): XyzDslBoxSpec {
   const [xAxis, yAxis, zAxis] = segments.map((segment, index) => parsePathAxisSpec(segment, AXES[index]));
 
+  const fillAxes = [xAxis, yAxis, zAxis].filter(axis => axis.size === 'fill').map(axis => axis.axis);
   return {
+    ...(fillAxes.length ? { fillAxes } : {}),
     source,
     x: xAxis.offset,
     y: yAxis.offset,
     z: zAxis.offset,
-    width: xAxis.size,
-    height: yAxis.size,
-    depth: zAxis.size,
+    width: xAxis.size === 'fill' ? NaN : xAxis.size,
+    height: yAxis.size === 'fill' ? NaN : yAxis.size,
+    depth: zAxis.size === 'fill' ? NaN : zAxis.size,
   };
 }
 

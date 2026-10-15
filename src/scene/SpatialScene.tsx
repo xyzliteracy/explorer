@@ -1,5 +1,6 @@
+import { useThree } from '@react-three/fiber';
 import { TourModelFocus } from '../performance/TourModelFocus';
-import { Fragment, type ReactNode } from 'react';
+import { Fragment, useLayoutEffect, type ReactNode } from 'react';
 import type { SpatialDocument } from '../model/SpatialDocument';
 import type { SpatialNode } from '../model/SpatialNode';
 import type { ModelTier } from '../performance/modelVisibility';
@@ -15,6 +16,8 @@ export function SpatialScene({ document, selectedNodeId, onSelectNode, selection
  renderContent?: (node: SpatialNode) => ReactNode;
  onPrecisionScaleChange?: (id: string, scale: number | undefined) => void;
 }) {
+ const gl = useThree(state => state.gl);
+ useLayoutEffect(() => { gl.localClippingEnabled = true; }, [gl]);
  const scene = <>
  {document.csgExpressions.map(expression => <CsgPrimitive key={expression.id} expression={expression} onSelect={onSelectNode} selectionEnabled={selectionEnabled}/>)}
  {document.renderNodes.map(node => node.model?.source ?

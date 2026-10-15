@@ -22,6 +22,131 @@ requires a browser supporting directory file inputs (Chromium recommended).
 `npm run build` generates `dist/`, including local Draco/Basis decoders. Serve
 this directory on any static web host. `npm run preview` serves it locally.
 
+## Default local draft and camera precision
+
+The bundled local draft (`src/defaultDraft.xyzdsl`) opens the Pap room with a
+600 mm tile grid, 1 mm joints, and clipped edge tiles. The flooring container
+starts at Y = 660 mm; the lounge rug declaration starts at Y = 196 mm.
+
+Selecting a thin model must not reduce depth precision across the room. In the
+editor, the camera near plane adapts to the distance from the selected bounds,
+allowing close inspection while avoiding surface flicker from farther away.
+Tours use the overall scene scale regardless of the editor selection. These
+camera settings are automatic and require no additional DSL properties.
+
+## Parent fill and repetition
+
+Paths retain three explicit X/Y/Z axis segments. Each axis is
+`+offset+size`, with either value optional. An omitted offset means zero;
+an omitted size means **fill the remaining parent extent from that offset**.
+The shorthand uses only existing Base64 path characters.
+
+| Segment | Meaning |
+| --- | --- |
+| `+2d+1` | Start at 20 cm; size 1 metre |
+| `++1` | Start at zero; size 1 metre |
+| `+2d+` | Start at 20 cm; extend to the parent's far edge |
+| `+0+` or `++` | Fill the entire parent axis |
+
+```text
+"Wall/+0+5/+0+3/+0+2d" : ""
+"Wall/Rail/++/+1+1d/+0+2d" : "color: brown"
+"Wall/Slat/+0+1d/++/+0+2d" : "repeat: x; repeat-gap: 1d"
+```
+
+The rail is 5 metres wide. There are 25 slats, each 10 cm wide and
+3 metres tall, with 10 cm gaps. The final 10 cm of wall width remains empty.
+No `expand` property is needed: the omitted axis size expresses expansion.
+Coordinate and gap units are metres without a suffix, decimetres (`d`),
+centimetres (`c`), or millimetres (`m`).
+
+`repeat` accepts distinct comma-separated axes: `x`, `y`, `z`, or combinations
+such as `x,z`. `repeat-gap` is one nonnegative length used on every repeated
+axis; it defaults to zero and requires `repeat`. Repetition preserves the
+original offset and size. The default `repeat-edge: whole` includes only complete
+copies that fit and leaves any remainder at the far edge. If no whole copy fits,
+it produces no objects. Multiple axes form a grid.
+An axis cannot simultaneously fill and repeat.
+
+### Clipped edge tiles
+
+Use `repeat-edge: clip` to cover the remainder with part of an additional tile:
+
+```text
+"Flooring/+2+109d/+66c+1c/+1d+397c":"color: white"
+"Flooring/Tiling/+0+6d/+0+6d/+0+6d":"model: lepapayer/floor_tiling.glb; rotation: 90,0,0; repeat: x,z; repeat-gap: 1m; repeat-edge: clip"
+```
+
+This 10.9 × 3.97 metre floor generates 19 columns and 7 rows. Tiles retain their
+600 mm sizing and 1 mm joints. The final visible column is 82 mm wide and the
+final row is 364 mm deep; the corner is clipped on both axes. `repeat-edge`
+accepts only `whole` (default) or `clip`, and requires `repeat`.
+
+Clip mode includes every copy whose starting edge is strictly inside the parent:
+`max(0, ceil((P - o) / (s + g)))`, with round-off tolerance at exact boundaries.
+It preserves gaps: if the remaining space lies entirely in a gap, no sliver is
+added. There is no stretching or redistribution. A tile larger than its parent
+can still contribute its visible portion.
+
+Clipping uses the parent's local boundaries **only on the repeated axes**, and
+follows parent rotations and reference scaling. In the example, the 1 cm parent
+height does not clip the tiles in Y. Nested subtrees retain ancestor clipping
+boundaries and may introduce additional ones. Tile boxes, transforms, model
+fitting, and UVs remain unchanged; the renderer clips visible geometry and
+shadows. Imported materials are cloned per instance without modifying the
+shared model asset. Shader clipping does not add solid caps across cut faces.
+
+Selection rays and tour collision ignore the cropped portions (including
+triangles crossing an edge). Selection/overlap bounds intersect the clipping
+region, while retaining the existing conservative world-AABB approximation.
+Primitive CSG operands are clipped before boolean evaluation; imported-model CSG
+remains unsupported. Content cards, including HTML overlays, are not supported
+inside clipped subtrees and are omitted with a diagnostic.
+
+For parent length `P`, offset `o`, size `s`, and gap `g`, fill resolves to
+`P - o`. Whole-edge repetition produces `max(0, floor((P - o + g) / (s + g)))` copies,
+positioned at `o + i * (s + g)`; exact-fit comparisons allow floating point
+round-off. Filling requires strictly positive remaining space.
+
+The parent is the nearest **concrete namespace ancestor**, skipping
+namespace-only declarations. Layout runs top-down in the parent's local axes,
+before rotations, world transforms, collision bounds, and CSG. Rotated geometry
+may extend beyond the parent's box: these rules size unrotated layout boxes,
+unless `repeat-edge: clip` explicitly clips the repeated axes. A container's
+filled box does not automatically stretch its children; children can declare
+their own filled axes.
+
+Repetition copies the entire subtree. Child layout is evaluated within each
+copy, and nested repetition is supported. Repeat properties apply locally to
+the concrete declaration, not as inherited namespace defaults. Children copied
+from a reference template retain their own repeat rules. A reference instance
+can itself repeat. Without `ref-scale`, template children fill the instance's
+box. With `ref-scale: true`, layout accounts for the template-to-instance scale
+so dimensions are scaled exactly once. Scaled templates need definite positive
+source dimensions: give the template a fixed concrete anchor if its children
+use fill sizing. Inferring a size from children that themselves need that size
+is diagnosed rather than treated as a circular constraint.
+
+Missing parents, invalid gaps/axes, incompatible fill/repeat rules, and
+nonpositive fill extents produce diagnostics and omit the affected subtree.
+Unanchored reference-template children are evaluated when materialized into an
+instance. Generation is limited to 10,000 instances per repetition and 10,000
+generated nodes per document (including descendants). Exceeding the document
+budget omits the containing root subtree and reports a diagnostic.
+
+Generated copies have unique, deterministic internal identities; their source
+text and line number still identify the authored declaration. Editing a copy
+therefore edits the source shared by all copies. Moving a filled axis preserves
+its fill rule. Size nudges on filled axes leave the rule intact; enter an explicit
+size in the source to switch that axis back to fixed sizing.
+
+For compiler consumers, `parseAxisSpec` returns `size: 'fill'` for omitted sizes.
+Parsed boxes carry `fillAxes`; their corresponding numeric dimensions are
+unresolved (`NaN`). Use `resolveXyzDslDocument` or `createSpatialDocument` before
+consuming dimensions for geometry. Resolved boxes have finite dimensions and no
+`fillAxes`. Generated nodes expose `repeatSourceId` and `repeatIndices` in their
+metadata, alongside the original `lineNumber`.
+
 ## Shared core
 
 Tours and ordinary navigation share the same model-quality policy. Normal devices

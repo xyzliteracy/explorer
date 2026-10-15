@@ -1,3 +1,5 @@
+import { threeClipPlanes } from '../model/clipping';
+import { clippedMeshRaycast, installClippedRaycast } from './clipping';
 import { useFrame } from '@react-three/fiber';
 import { Component, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ErrorInfo, type ReactNode } from 'react';
 import { useModelAsset, useOriginalModelAsset, useModelPresentation, useModelRetryGeneration, useModelMemoryPressure, useModelSceneRevealed } from '../performance/ModelRuntime';
@@ -30,6 +32,7 @@ class ModelErrorBoundary extends Component<{ children: ReactNode }, { failed: bo
 export function ModelObject({ scene, fit, align, node, targetScale, onPrecisionScaleChange }: { scene: Object3D; fit: 'contain' | 'stretch'; align: 'center' | 'floor'; node: SpatialNode; targetScale: [number, number, number]; onPrecisionScaleChange?: (scale: number | undefined) => void }) {
   const imported = useMemo(() => {
     const clone = SkeletonUtils.clone(scene);
+    const clippingPlanes = threeClipPlanes(node.clippingPlanes);
     const ownedMaterials = new Set<Material>();
     const ownedSkeletons = new Set<import('three').Skeleton>();
     clone.traverse((object) => {
@@ -39,10 +42,16 @@ export function ModelObject({ scene, fit, align, node, targetScale, onPrecisionS
       const mesh = object as Mesh;
       mesh.castShadow = true;
       mesh.receiveShadow = true;
-      if (node.material.color === undefined && node.material.metalness === undefined && node.material.roughness === undefined) return;
+      if (clippingPlanes.length) installClippedRaycast(mesh);
+      if (!clippingPlanes.length && node.material.color === undefined && node.material.metalness === undefined && node.material.roughness === undefined) return;
       const materials = (Array.isArray(mesh.material) ? mesh.material : [mesh.material]).map((sourceMaterial) => {
         const material = sourceMaterial.clone() as Material & { color?: Color; metalness?: number; roughness?: number };
         ownedMaterials.add(material);
+        if (clippingPlanes.length) {
+          material.clippingPlanes = clippingPlanes;
+          material.clipIntersection = false;
+          material.clipShadows = true;
+        }
         if (node.material.color !== undefined && material.color) material.color = new Color(node.material.color);
         if (node.material.metalness !== undefined && material.metalness !== undefined) material.metalness = node.material.metalness;
         if (node.material.roughness !== undefined && material.roughness !== undefined) material.roughness = node.material.roughness;
@@ -55,7 +64,7 @@ export function ModelObject({ scene, fit, align, node, targetScale, onPrecisionS
     const validBounds = prepared && ['min', 'max'].every(key => Array.isArray(prepared[key]) && prepared[key].length === 3 && prepared[key].every((value: unknown) => typeof value === 'number' && Number.isFinite(value)));
     const bounds = validBounds ? new Box3(new Vector3(...prepared.min as [number, number, number]), new Vector3(...prepared.max as [number, number, number])) : new Box3().setFromObject(clone);
     return { scene: clone, bounds, ownedMaterials, ownedSkeletons };
-  }, [scene, node.material.color, node.material.metalness, node.material.roughness]);
+  }, [scene, node.material.color, node.material.metalness, node.material.roughness, node.clippingPlanes]);
   useEffect(() => () => { imported.ownedMaterials.forEach(material => material.dispose()); imported.ownedSkeletons.forEach(skeleton => skeleton.dispose()); }, [imported]);
   const fitted = useMemo(
     () => modelFitTransformFromBounds(imported.bounds, fit, align, targetScale),
@@ -152,11 +161,11 @@ export function ModelPrimitive({ node, onSelect, selectionEnabled = true, onPrec
     [node.id, onPrecisionScaleChange],
   );
   function handleClick(event: ThreeEvent<MouseEvent>) { event.stopPropagation(); if (shouldSelectFromClick(selectionEnabled, event)) onSelect?.(node.id); }
-  return <group ref={group} position={position} rotation={rotation} scale={scale} onClick={handleClick} userData={{ spatialNodeId: node.id, model: model.source }}>
+  return <group ref={group} position={position} rotation={rotation} scale={scale} onClick={handleClick} userData={{ spatialNodeId: node.id, model: model.source, xyzClippingPlanes: node.clippingPlanes }}>
     <ModelErrorBoundary key={`${model.source}:${model.previewSource}:${model.detailSource}:${model.fit}:${model.align}:${recovery}`}>
       <Suspense fallback={<ModelFailure />}><StreamingModel node={node} tier={tier} originalNeeded={originalNeeded} originalPriority={originalPriority} onRetainOriginal={preserveOriginal} resolved={resolved} selected={selected} tourMode={tourMode} onPrecisionScaleChange={handlePrecisionScaleChange} /></Suspense>
     </ModelErrorBoundary>
-    <mesh userData={{ povCollisionIgnored: true }}>
+    <mesh raycast={clippedMeshRaycast} userData={{ povCollisionIgnored: true }}>
       <boxGeometry />
       <meshBasicMaterial transparent opacity={0} depthWrite={false} />
     </mesh>

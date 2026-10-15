@@ -1,3 +1,5 @@
+import { Matrix4 } from 'three';
+import { clippedBounds, repeatClipPlanes } from './clipping';
 import { parseXyzDslDocument } from '../xyzdsl/parser';
 import { resolveXyzDslDocument } from '../xyzdsl/resolveDocument';
 import { canonicalNamespacePath } from '../xyzdsl/pathParser';
@@ -7,6 +9,7 @@ import { assignUnionGroups, boundsFromTransformedBox } from './collision';
 import { buildCsgExpressions } from './csg';
 import { geometryFromBox } from './geometry';
 import {
+  matrixFromTransform,
   anchorTransformFromBox,
   composeTransforms,
   transformFromBox,
@@ -101,6 +104,16 @@ export function createSpatialDocument(source: string): SpatialDocument {
       const worldTransform = parent?.worldTransform
         ? composeTransforms(parent.worldTransform, localTransform)
         : localTransform;
+      const clippingPlanes = [
+        ...(parent?.clippingPlanes ?? []),
+        ...repeatClipPlanes(object.repeatClip ?? [], parent?.worldTransform ? matrixFromTransform(parent.worldTransform) : new Matrix4()),
+      ];
+      const originalBounds = boundsFromTransformedBox(object.box, worldTransform);
+      const bounds = clippedBounds(originalBounds, clippingPlanes);
+      const unsupportedContent = clippingPlanes.length > 0 && object.content.kind && !object.model.source;
+      if (unsupportedContent) diagnostics.push({ line: object.lineNumber, source: object.source,
+        message: 'repeat-edge: clip supports primitives and imported models; content cards inside clipped subtrees are omitted.',
+      });
       const node: SpatialNode = {
         id: object.id,
         source: object.source,
@@ -113,10 +126,11 @@ export function createSpatialDocument(source: string): SpatialDocument {
         localTransform,
         worldTransform,
         transform: worldTransform,
-        bounds: boundsFromTransformedBox(object.box, worldTransform),
+        bounds: bounds ?? originalBounds,
+        ...(clippingPlanes.length ? { clippingPlanes } : {}),
         namespacePath: object.namespacePath,
         parentNamespacePath: object.parentNamespacePath,
-        renderable: object.renderable && !object.viewPoint && !object.light,
+        renderable: object.renderable && !object.viewPoint && !object.light && Boolean(bounds) && !unsupportedContent,
         children: [],
         metadata: {
           viewPoint: Boolean(object.viewPoint && object.renderable),
@@ -126,6 +140,8 @@ export function createSpatialDocument(source: string): SpatialDocument {
           reference: object.reference.targetPath,
           materializedFrom: object.materializedFrom,
           anchorScale: object.anchorScale,
+          repeatSourceId: object.repeatSourceId,
+          repeatIndices: object.repeatIndices,
         },
       };
 

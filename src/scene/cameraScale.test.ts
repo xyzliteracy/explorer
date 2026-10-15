@@ -14,6 +14,20 @@ function node(dimensions: [number, number, number], position: [number, number, n
 }
 
 describe('camera scene scale', () => {
+  it('keeps depth precision when a thin selection is viewed from across the room', () => {
+    const rug = node([1.3, .001, 1.6], [3, 1, 2]);
+    const camera = new PerspectiveCamera(45, 1, .0001, 100);
+    camera.position.set(5, 3, 5);
+    expect(updateCameraClipPlanes(camera, .001, rug.bounds, rug.bounds)).toBe(true);
+    expect(camera.near).toBe(.05);
+    // Approaching the surface still permits millimetre-scale inspection.
+    camera.position.set(3.5, 1.002, 2.5);
+    updateCameraClipPlanes(camera, .001, rug.bounds, rug.bounds);
+    expect(camera.near).toBe(.0001);
+    camera.position.set(3.5, 1.501, 2.5);
+    updateCameraClipPlanes(camera, .001, rug.bounds, rug.bounds);
+    expect(camera.near).toBeCloseTo(.01);
+  });
   it('uses a selected small object for precision navigation', () => {
     expect(cameraSceneScale([node([2, 2, 2])], node([0.01, 0.02, 0.03]))).toBe(0.01);
   });

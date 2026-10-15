@@ -3,10 +3,12 @@ export type AxisName = 'x' | 'y' | 'z';
 export interface XyzDslAxisSpec {
   axis: AxisName;
   offset: number;
-  size: number;
+  size: number | 'fill';
 }
 
 export interface XyzDslBoxSpec {
+  /** Dimensions on these axes are unresolved until parent layout is available. */
+  fillAxes?: AxisName[];
   source: string;
   x: number;
   y: number;
@@ -87,7 +89,15 @@ export interface XyzDslLightSpec {
   distance: number;
 }
 
+export interface XyzDslRepeatSpec {
+  edge?: 'whole' | 'clip';
+  axes: AxisName[];
+  gap: number;
+  invalid?: boolean;
+}
+
 export interface SpatialObject {
+  repeat?: XyzDslRepeatSpec;
   light?: XyzDslLightSpec;
   viewPoint?: boolean;
   id: string;

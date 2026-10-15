@@ -1,3 +1,4 @@
+import { clippedMeshRaycast } from './clipping';
 import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Mesh, Vector3, type Matrix4 } from 'three';
@@ -15,7 +16,7 @@ export function observableFrom(observable: XyzDslObservable | undefined, camera:
 
 // Hidden meshes let picking rays through. Collision uses geometry directly.
 export const observableRaycast: Mesh['raycast'] = function (this: Mesh, raycaster, intersections) {
-  if (this.visible) Mesh.prototype.raycast.call(this, raycaster, intersections);
+  if (this.visible) clippedMeshRaycast.call(this, raycaster, intersections);
 };
 
 export function useObservableMesh(node: SpatialNode) {

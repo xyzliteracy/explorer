@@ -1,5 +1,6 @@
+import { threeClipPlanes } from '../model/clipping';
 import { ADDITION, Brush, Evaluator, INTERSECTION, SUBTRACTION } from 'three-bvh-csg';
-import { Vector3, type BufferGeometry } from 'three';
+import { BoxGeometry, Quaternion, Vector3, type BufferGeometry } from 'three';
 import type { CsgExpression, CsgOperationNode } from '../model/csg';
 import type { SpatialNode } from '../model/SpatialNode';
 import { bufferGeometryForSpatialGeometry } from './primitiveGeometry';
@@ -16,7 +17,32 @@ function brushFor(node: SpatialNode): Brush {
   brush.rotation.set(0, 0, 0);
   brush.scale.set(1, 1, 1);
   brush.updateMatrixWorld(true);
-  return brush;
+  // Clip each operand before boolean evaluation so a cropped subtraction tool
+  // cannot cut geometry beyond its repeat parent, and unions retain their own scope.
+  let result = brush;
+  for (const plane of threeClipPlanes(node.clippingPlanes)) {
+    result.geometry.computeBoundingBox();
+    const bounds = result.geometry.boundingBox!;
+    if (bounds.isEmpty()) break;
+    const corners = [bounds.min.x, bounds.max.x].flatMap(x =>
+      [bounds.min.y, bounds.max.y].flatMap(y => [bounds.min.z, bounds.max.z].map(z => new Vector3(x, y, z))));
+    if (corners.every(p => plane.distanceToPoint(p) >= -1e-8)) continue;
+    const center = bounds.getCenter(new Vector3());
+    const size = 2 * (bounds.getSize(new Vector3()).length() + Math.abs(plane.distanceToPoint(center))) + 1;
+    const cutterGeometry = new BoxGeometry(size, size, size);
+    cutterGeometry.applyQuaternion(new Quaternion().setFromUnitVectors(new Vector3(0, 0, 1), plane.normal));
+    const location = plane.projectPoint(center, new Vector3()).addScaledVector(plane.normal, size / 2);
+    cutterGeometry.translate(location.x, location.y, location.z);
+    const cutter = new Brush(cutterGeometry);
+    cutter.updateMatrixWorld(true);
+    const evaluator = new Evaluator();
+    evaluator.attributes = ['position', 'normal', 'uv'];
+    const previous = result;
+    result = evaluator.evaluate(result, cutter, INTERSECTION);
+    previous.geometry.dispose();
+    cutterGeometry.dispose();
+  }
+  return result;
 }
 
 function csgOperation({ op }: CsgOperationNode) {

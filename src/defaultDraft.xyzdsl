@@ -18,7 +18,9 @@
 "Pap/BackWall/+0+109d/+0+300c/+397c+1c":"color: white; observable: +z"
 "Pap/LeftWall/+0+1c/+0+300c/+0+397c":"color: white;"
 "Pap/RightWall/+109d+1c/+0+300c/+0+397c":"color: white;"
-"Pap/Flooring/+0+109d/+0+1c/+0+397c":"color: white;"
+
+"Flooring/+2+109d/+66c+1c/+1d+397c":"color: white;"
+"Flooring/Tiling/+0+6d/+0+6d/+0+6d":"model: lepapayer/floor_tiling.glb; rotation: 90,0,0; repeat: x,z; repeat-gap: 1m; repeat-edge: clip"
 
 "Pap/MainDoor/+26d+1/+0+22d/+387c+21c":"model: lepapayer/oak_door.glb"
 "Pap/MainOpening/+270c+80c/+0+210c/+397c+1c":"operation: subtraction"
@@ -44,7 +46,7 @@
 "Pap/GeometricArt/+235c+48c/+103c+1/+0+101m" : "model: lepapayer/geometric_art.glb"
 "Pap/BrownArmChair/+154m+8d/+0+6d/+2171m+7d" : "model: lepapayer/brown_armchair.glb; rotation: 0, 90, 0"
 "Pap/GreyArmChair/+154m+8d/+0+6d/+1217m+7d" : "model: lepapayer/grey_armchair.glb; rotation: 0, 90, 0"
-"LoungeRug/+309c+1281m/+22c+161c/+19d+2c" : "model: lepapayer/lounge_rug.glb; model-align: floor; rotation: 90, 0, 0"
+"LoungeRug/+309c+1281m/+196m+161c/+19d+2c" : "model: lepapayer/lounge_rug.glb; model-align: floor; rotation: 90, 0, 0"
 "Pap/KitchenStudio/+3408m+301c/+0+209c/+1c+22d" : "model: lepapayer/kitchen_unit.glb; model-align: floor"
 "Pap/GlassTable/+1139m+108c/+0+43c/+1582m+58c" : "model: lepapayer/glassy_table.glb; rotation: 0, 90, 0"
 "Pap/Television/+952m+101c/+11d+61c/+0+6d" : "model: lepapayer/wall_television.glb"

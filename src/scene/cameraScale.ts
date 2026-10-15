@@ -48,8 +48,9 @@ export function cameraClipPlanes(
   scale: number,
   nodes: readonly SpatialNode[],
   cameraPosition: readonly [number, number, number],
+  selectionBounds?: SpatialBounds,
 ): { near: number; far: number } {
-  return cameraClipPlanesForBounds(scale, sceneBoundsFromNodes(nodes), cameraPosition);
+  return cameraClipPlanesForBounds(scale, sceneBoundsFromNodes(nodes), cameraPosition, selectionBounds);
 }
 
 export function sceneBoundsFromNodes(nodes: readonly SpatialNode[]): SpatialBounds | undefined {
@@ -73,14 +74,22 @@ export function cameraClipPlanesForBounds(
   scale: number,
   bounds: SpatialBounds | undefined,
   cameraPosition: readonly [number, number, number],
+  selectionBounds?: SpatialBounds,
 ): { near: number; far: number } {
   const distanceX = bounds ? Math.max(Math.abs(bounds.minX - cameraPosition[0]), Math.abs(bounds.maxX - cameraPosition[0])) : 0;
   const distanceY = bounds ? Math.max(Math.abs(bounds.minY - cameraPosition[1]), Math.abs(bounds.maxY - cameraPosition[1])) : 0;
   const distanceZ = bounds ? Math.max(Math.abs(bounds.minZ - cameraPosition[2]), Math.abs(bounds.maxZ - cameraPosition[2])) : 0;
   const farthestDistance = Math.hypot(distanceX, distanceY, distanceZ);
 
+  // Thin selections need a tiny near plane only when inspecting them up close.
+  // Distance to their bounds (not their center) keeps large panels approachable.
+  const selectionDistance = selectionBounds ? Math.hypot(
+    Math.max(selectionBounds.minX - cameraPosition[0], 0, cameraPosition[0] - selectionBounds.maxX),
+    Math.max(selectionBounds.minY - cameraPosition[1], 0, cameraPosition[1] - selectionBounds.maxY),
+    Math.max(selectionBounds.minZ - cameraPosition[2], 0, cameraPosition[2] - selectionBounds.maxZ),
+  ) : 0;
   return {
-    near: Math.max(0.0001, Math.min(0.05, scale * 0.02)),
+    near: Math.max(0.0001, Math.min(0.05, Math.max(scale, selectionDistance) * 0.02)),
     far: Math.max(100, farthestDistance * 2),
   };
 }
@@ -89,9 +98,10 @@ export function updateCameraClipPlanes(
   camera: PerspectiveCamera,
   scale: number,
   bounds: SpatialBounds | undefined,
+  selectionBounds?: SpatialBounds,
 ): boolean {
   const position = camera.position.toArray() as [number, number, number];
-  const clips = cameraClipPlanesForBounds(scale, bounds, position);
+  const clips = cameraClipPlanesForBounds(scale, bounds, position, selectionBounds);
   let changed = false;
 
   if (camera.near !== clips.near) {

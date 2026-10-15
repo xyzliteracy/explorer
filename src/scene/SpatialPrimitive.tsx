@@ -1,3 +1,5 @@
+import { useMemo } from 'react';
+import { threeClipPlanes } from '../model/clipping';
 import { useObservableMesh } from './observability';
 import { RoundedBoxGeometry } from '@react-three/drei';
 import type { ThreeEvent } from '@react-three/fiber';
@@ -51,6 +53,7 @@ export function SpatialPrimitive({ node, onSelect, selectionEnabled = true }: Sp
   const { position, rotation, scale } = node.transform;
   const observableMesh = useObservableMesh(node);
   const material = materialParameters(node);
+  const clippingPlanes = useMemo(() => threeClipPlanes(node.clippingPlanes), [node.clippingPlanes]);
 
   function handleClick(event: ThreeEvent<MouseEvent>) {
     event.stopPropagation();
@@ -68,13 +71,14 @@ export function SpatialPrimitive({ node, onSelect, selectionEnabled = true }: Sp
       onClick={handleClick}
       userData={{
         spatialNodeId: node.id,
+        xyzClippingPlanes: node.clippingPlanes,
         unionGroupId: node.unionGroupId,
         geometry: node.geometry.kind,
         rotation,
       }}
     >
       <PrimitiveGeometry geometry={node.geometry} />
-      <meshStandardMaterial {...material} />
+      <meshStandardMaterial {...material} clippingPlanes={clippingPlanes} clipShadows />
     </mesh>
   );
 }

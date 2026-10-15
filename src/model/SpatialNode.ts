@@ -12,6 +12,8 @@ export interface SpatialBounds {
 }
 
 export interface SpatialNode {
+  /** World-space half spaces; points with nonnegative signed distance remain visible. */
+  clippingPlanes?: import('./clipping').ClipPlane[];
   light?: import('../xyzdsl/types').XyzDslLightSpec;
   id: string;
   source: string;

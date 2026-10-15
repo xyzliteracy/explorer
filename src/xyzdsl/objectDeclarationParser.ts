@@ -1,3 +1,4 @@
+import { parseRepeatDeclaration } from './repeatParser';
 import { parseContentDeclaration } from './contentParser';
 import { parseGeometryDeclaration } from './geometryParser';
 import { parseMaterialDeclaration, SUPPORTED_MATERIAL_KEYS } from './materialParser';
@@ -28,6 +29,9 @@ const SUPPORTED_OBJECT_PROPERTIES = new Set([
   'rotate',
   'ref',
   'ref-scale',
+  'repeat',
+  'repeat-gap',
+  'repeat-edge',
   'content-kind',
   'content-text',
   'content-text-uri',
@@ -41,6 +45,7 @@ const SUPPORTED_OBJECT_PROPERTIES = new Set([
 ]);
 
 export interface XyzDslObjectPropertiesSpec {
+  repeat?: import('./types').XyzDslRepeatSpec;
   light?: import('./types').XyzDslLightSpec;
   viewPoint?: boolean;
   material: XyzDslMaterialSpec;
@@ -54,6 +59,7 @@ export interface XyzDslObjectPropertiesSpec {
 
 export function parseObjectProperties(source: string): XyzDslObjectPropertiesSpec {
   const { declarations, diagnostics } = parsePropertyDeclarations(source);
+  const repeat = parseRepeatDeclaration(declarations, diagnostics);
   const material = parseMaterialDeclaration(declarations);
   const geometry = parseGeometryDeclaration(declarations);
   const transform = parseTransformDeclaration(declarations);
@@ -87,6 +93,7 @@ export function parseObjectProperties(source: string): XyzDslObjectPropertiesSpe
   if (!enabled && declarations.some(d => d.property.startsWith('light-') && d.property !== 'light-source')) diagnostics.push('Light options require light-source: true or point.');
 
   return {
+    repeat,
     light: enabled ? { intensity, distance, color: lightMaterial.color ?? '#ffffff' } : undefined,
     viewPoint: marker?.value === 'true',
     material,

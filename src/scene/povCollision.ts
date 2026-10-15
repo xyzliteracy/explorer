@@ -1,3 +1,5 @@
+import { clipPolygon, insideClipPlanes, type ClipPlane } from '../model/clipping';
+import { objectClipPlanes } from './clipping';
 import { Box3, BufferGeometry, DoubleSide, InstancedMesh, Line3, Matrix4, Mesh, Ray, Triangle, Vector3, type Object3D } from 'three';
 import { MeshBVH } from 'three-mesh-bvh';
 import { objectParticipatesInPovCollision } from './povPicking';
@@ -75,6 +77,7 @@ function geometrySweepMetrics(
   matrixWorld: Matrix4,
   sweep: Line3,
   radius: number,
+  clippingPlanes: readonly ClipPlane[],
 ): SweepMetrics {
   const inverse = matrixWorld.clone().invert();
   const localStart = sweep.start.clone().applyMatrix4(inverse);
@@ -92,8 +95,16 @@ function geometrySweepMetrics(
     endDistanceSquared: Infinity,
   };
   const tree = boundsTreeFor(geometry);
-  metrics.startInside = pointInsideGeometry(tree, localStart);
-  metrics.endInside = pointInsideGeometry(tree, localEnd);
+  metrics.startInside = insideClipPlanes(sweep.start, clippingPlanes) && pointInsideGeometry(tree, localStart);
+  metrics.endInside = insideClipPlanes(sweep.end, clippingPlanes) && pointInsideGeometry(tree, localEnd);
+
+  const measureTriangle = () => {
+    metrics.startDistanceSquared = Math.min(metrics.startDistanceSquared,
+      worldTriangle.closestPointToPoint(sweep.start, closest).distanceToSquared(sweep.start));
+    metrics.endDistanceSquared = Math.min(metrics.endDistanceSquared,
+      worldTriangle.closestPointToPoint(sweep.end, closest).distanceToSquared(sweep.end));
+    if (segmentTriangleDistanceSquared(sweep, worldTriangle) <= radiusSquared) metrics.hit = true;
+  };
 
   tree.shapecast({
     intersectsBounds: (bounds) => bounds.intersectsBox(localSweepBounds),
@@ -101,15 +112,15 @@ function geometrySweepMetrics(
       worldTriangle.a.copy(triangle.a).applyMatrix4(matrixWorld);
       worldTriangle.b.copy(triangle.b).applyMatrix4(matrixWorld);
       worldTriangle.c.copy(triangle.c).applyMatrix4(matrixWorld);
-      metrics.startDistanceSquared = Math.min(
-        metrics.startDistanceSquared,
-        worldTriangle.closestPointToPoint(sweep.start, closest).distanceToSquared(sweep.start),
-      );
-      metrics.endDistanceSquared = Math.min(
-        metrics.endDistanceSquared,
-        worldTriangle.closestPointToPoint(sweep.end, closest).distanceToSquared(sweep.end),
-      );
-      if (segmentTriangleDistanceSquared(sweep, worldTriangle) <= radiusSquared) metrics.hit = true;
+      if (!clippingPlanes.length) {
+        measureTriangle();
+      } else {
+        const polygon = clipPolygon([worldTriangle.a.clone(), worldTriangle.b.clone(), worldTriangle.c.clone()], clippingPlanes);
+        for (let i = 1; i + 1 < polygon.length; i++) {
+          worldTriangle.set(polygon[0], polygon[i], polygon[i + 1]);
+          measureTriangle();
+        }
+      }
       return false;
     },
   });
@@ -143,7 +154,7 @@ export function sweptSphereIntersectsScene(
       transforms.push(object.matrixWorld);
     }
     transforms.forEach((matrixWorld) => {
-      const metrics = geometrySweepMetrics(object.geometry, matrixWorld, sweep, radius);
+      const metrics = geometrySweepMetrics(object.geometry, matrixWorld, sweep, radius, objectClipPlanes(object));
       hit ||= metrics.hit;
       startInside ||= metrics.startInside;
       endInside ||= metrics.endInside;

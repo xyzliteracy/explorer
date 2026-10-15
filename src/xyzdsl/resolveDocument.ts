@@ -1,3 +1,4 @@
+import { resolveLayout } from './resolveLayout';
 import type {
   XyzDslBoxSpec,
   XyzDslContentSpec,
@@ -22,6 +23,10 @@ export interface ResolvedSpatialObject extends SpatialObject {
   renderable: boolean;
   materializedFrom?: string;
   anchorScale?: [number, number, number];
+  referenceDimensions?: [number, number, number];
+  repeatClip?: { axis: import('./types').AxisName; extent: number }[];
+  repeatSourceId?: string;
+  repeatIndices?: [number, number, number];
 }
 
 interface ResolvedProperties {
@@ -518,6 +523,12 @@ export function resolveXyzDslDocument(objects: SpatialObject[]): {
       object.reference.targetPath,
       object.lineNumber,
     );
+    if (object.reference.scale && isCompoundReference) {
+      object.referenceDimensions = target?.box
+        ? dimensionsFromBox(target.box)
+        : dimensionsFromRootChildren(descendants, targetNamespace);
+      if (!object.referenceDimensions) object.referenceDimensions = [NaN, NaN, NaN];
+    }
     const anchorScale = object.reference.scale
       ? scaleToFit(
           target?.box
@@ -609,13 +620,13 @@ export function resolveXyzDslDocument(objects: SpatialObject[]): {
   });
 
   return {
-    objects: allObjects.map((object) => ({
+    objects: resolveLayout(allObjects.map((object) => ({
       ...object,
       anchorScale: anchorScaleById.get(object.id) ?? object.anchorScale,
       renderable:
         renderEligibleObjects.includes(object) &&
         !hasMaterializedChildInstance(object, renderEligibleObjects),
-    })),
+    })), diagnostics, referencedTargetNamespaces),
     diagnostics,
   };
 }

@@ -76,8 +76,6 @@ export function SceneRoot({ document: spatialDocument, selectedNodeId, onSelectN
     },
     [modelPrecisionScales, selectedNodeId, spatialDocument],
   );
-  const sceneScale = cameraSceneScale(cameraSizingNodes, selectedNode, DEFAULT_CAMERA_POSITION);
-  const clips = cameraClipPlanes(sceneScale, cameraSizingNodes, DEFAULT_CAMERA_POSITION);
   const lights = useMemo(() => lightNodes(spatialDocument), [spatialDocument]);
   const points = useMemo(() => viewPoints(spatialDocument), [spatialDocument]);
   const orbitRef = useRef<OrbitControlType>(null);
@@ -85,6 +83,11 @@ export function SceneRoot({ document: spatialDocument, selectedNodeId, onSelectN
   const pointIndex = tour.index;
   const point = pointIndex === undefined ? undefined : points[pointIndex];
   const cameraMode = point ? 'pov' : 'orbit';
+  // A thin editor selection must not carry its tiny near plane into a room tour:
+  // it loses depth precision and makes closely spaced model surfaces z-fight.
+  const sceneScale = cameraSceneScale(cameraSizingNodes, point ? undefined : selectedNode, DEFAULT_CAMERA_POSITION);
+  const selectionBounds = point ? undefined : selectedNode?.bounds;
+  const clips = cameraClipPlanes(sceneScale, cameraSizingNodes, DEFAULT_CAMERA_POSITION, selectionBounds);
   const orbitTarget = useMemo(() => {
     return selectedNode?.transform.position ?? DEFAULT_ORBIT_TARGET;
   }, [selectedNode]);
@@ -118,7 +121,7 @@ export function SceneRoot({ document: spatialDocument, selectedNodeId, onSelectN
       {selectedNode && !point && (editorMode || (!selectedNode.metadata?.viewPoint && !selectedNode.light)) ? <SelectionBounds node={selectedNode} /> : null}
       {cameraMode === 'orbit' ? <OrbitControls ref={orbitRef} makeDefault target={orbitTarget} maxPolarAngle={Math.PI} /> : null}
       <ViewPointControls point={point} orbitTarget={tour.orbitTarget} onTraverse={tour.traverse} onExit={tour.exit} />
-      <CameraClipController nodes={cameraSizingNodes} scale={sceneScale} />
+      <CameraClipController nodes={cameraSizingNodes} scale={sceneScale} selectionBounds={selectionBounds} />
       <EditorSelectionControls
         active={editorMode && cameraMode === 'orbit'}
         canEditSelection={Boolean(selectedNodeId && selectedNodeCanEdit)}
