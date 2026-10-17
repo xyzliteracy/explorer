@@ -129,8 +129,10 @@ export function ModelPrimitive({ node, onSelect, selectionEnabled = true, onPrec
   useFrame(({ camera, size, scene, gl }) => {
     if (!group.current || critical || model.detailSource) return;
     group.current.updateWorldMatrix(true, false);
-    const pixels = modelScreenPixels(camera, group.current.matrixWorld, size.height);
-    const ahead = modelScreenPixels(camera, group.current.matrixWorld, size.height, 1.75);
+    // Detail should follow rendered pixels, including on small high-DPI screens.
+    const renderedHeight = size.height * (gl?.getPixelRatio?.() ?? 1);
+    const pixels = modelScreenPixels(camera, group.current.matrixWorld, renderedHeight);
+    const ahead = modelScreenPixels(camera, group.current.matrixWorld, renderedHeight, 1.75);
     // Prefetch a wide guard around nearby models; once promoted, retain full
     // fidelity for the entire visible interval, even when its screen size shrinks.
     const occluded = Boolean(!retainOriginal && !selected && (pixels > 0 || ahead >= 400) && scene && gl && modelOccluded(camera, scene, group.current.matrixWorld, gl.info.render.frame));
@@ -148,8 +150,9 @@ export function ModelPrimitive({ node, onSelect, selectionEnabled = true, onPrec
         if (group.current) {
           group.current.updateWorldMatrix(true, false);
           const hidden = Boolean(scene && gl && modelOccluded(camera, scene, group.current.matrixWorld, gl.info.render.frame));
-          if (!hidden && (modelScreenPixels(camera, group.current.matrixWorld, size.height) > 0 ||
-              modelScreenPixels(camera, group.current.matrixWorld, size.height, 1.75) >= 400)) return;
+          const currentRenderedHeight = size.height * (gl?.getPixelRatio?.() ?? 1);
+          if (!hidden && (modelScreenPixels(camera, group.current.matrixWorld, currentRenderedHeight) > 0 ||
+              modelScreenPixels(camera, group.current.matrixWorld, currentRenderedHeight, 1.75) >= 400)) return;
         }
         if (!guarded.current && pressureRef.current) setOriginalNeeded(false);
       }, 8000);

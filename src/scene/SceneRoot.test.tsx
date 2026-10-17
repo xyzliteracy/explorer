@@ -3,8 +3,9 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createSpatialDocument } from '../model/createSpatialDocument';
 
-const canvas = vi.hoisted(() => ({ children: undefined as unknown }));
-vi.mock('@react-three/fiber', async importOriginal => ({ ...await importOriginal<typeof import('@react-three/fiber')>(), Canvas: ({ children }: { children: unknown }) => { canvas.children = children; return null; } }));
+const canvas = vi.hoisted(() => ({ children: undefined as unknown, props: undefined as any }));
+vi.mock('@react-three/fiber', async importOriginal => ({ ...await importOriginal<typeof import('@react-three/fiber')>(), Canvas: (props: any) => { canvas.children = props.children; canvas.props = props; return null; } }));
+import { ModelRuntime } from '../performance/ModelRuntime';
 import { SceneRoot } from './SceneRoot';
 import { LightSourceMarker } from './LightSourceMarker';
 import { SelectionBounds } from './SelectionBounds';
@@ -101,4 +102,33 @@ it('shows light boxes only in the orbital editor, including when a light is sele
   expect(markers[0].props.selected).toBe(true);
   fireEvent.click(screen.getByRole('button', { name: /Start tour/ }));
   expect(canvasElements(canvas.children).filter(element => element.type === LightSourceMarker || element.type === SelectionBounds)).toHaveLength(0);
+});
+
+it('keeps preparation and recovery controls outside Canvas', () => {
+  viewport(true);
+  render(<SceneRoot {...props} document={createSpatialDocument(source)} />);
+  const runtime = () => canvasElements(canvas.children).find(child => child.type === ModelRuntime);
+  expect(screen.getByText('Preparing your scene…')).toBeDefined();
+  act(() => runtime().props.onPreparation('error'));
+  fireEvent.click(screen.getByRole('button', { name: 'Retry models' }));
+  expect(runtime().props.retry).toBe(1);
+  act(() => runtime().props.onPreparation('context-lost'));
+  expect(screen.getByRole('button', { name: 'Restart viewer' })).toBeDefined();
+  act(() => runtime().props.onPreparation('ready'));
+  expect(screen.queryByText('Preparing your scene…')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Restart viewer' })).toBeNull();
+});
+
+it('keeps mobile edges sharp while retaining the reduced-graphics recovery path', () => {
+  viewport(true);
+  render(<SceneRoot {...props} document={createSpatialDocument(source)} />);
+  expect(canvas.props.dpr).toEqual([1, 1.5]);
+  expect(canvas.props.gl.antialias).toBe(true);
+  const runtime = () => canvasElements(canvas.children).find(child => child.type === ModelRuntime);
+  act(() => runtime().props.onPreparation('context-lost'));
+  expect(canvas.props.dpr).toEqual([1, 1]);
+  expect(canvas.props.shadows).toBe(false);
+  fireEvent.click(screen.getByRole('button', { name: 'Restart viewer' }));
+  expect(canvas.props.gl.antialias).toBe(false);
+  sessionStorage.clear();
 });

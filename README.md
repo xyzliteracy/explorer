@@ -354,3 +354,57 @@ before rendering and model occlusion checks. On the see-through side the block
 also stops casting shadows and intercepting selection rays. Physical POV
 collision remains active on both sides. Existing scenes without the property
 retain their normal rendering.
+
+## Mobile rendering and local device testing
+
+Point-light shadows share a bounded budget rather than allocating a 2048-face
+atlas for every light. Mobile/touch and known low-memory devices use up to four
+512-face shadows (64 MiB estimated RGBA + depth); desktop uses up to eight
+shadowed lights within 256 MiB, reducing face resolution to fit. Pap's four
+lights therefore use 512 on mobile and 1024 on desktop. Additional lights keep
+illuminating but do not cast shadows. Atlas dimensions also respect the GPU's
+maximum texture size. Shadows at 512 faces or below use a wider PCF filter
+(radius 2) to soften jagged edges without increasing shadow-map allocation.
+Mobile uses the balanced DPR cap of 1.5 with MSAA (critical devices and recovery
+restarts use DPR 1 without MSAA). Original-model upgrades use rendered pixel
+size so high-DPI phone screens do not unfairly remain on prepared detail assets.
+Model fidelity and model admission limits remain separate and unchanged; these
+estimates are not measurements of total browser memory.
+
+WebGL context loss disables shadows and reduces DPR to 1. This fallback persists
+for the tab session (including reloads), and loading/error/restart controls live
+outside the WebGL canvas. Closing the tab clears its session fallback. Static
+shadow caching is not enabled: model streaming, clipping, edits and visibility
+changes continue to update shadows correctly.
+
+To test the bundled Pap scene against local prepared models without depending
+on the remote store, run from this directory:
+
+```sh
+XYZ_LOCAL_MODELS_DIR=/path/to/lepapayer-models \
+VITE_MODEL_ASSET_BASE=http://127.0.0.1:5176/__local-models/ \
+npm run dev -- --host 127.0.0.1 --port 5176 --strictPort
+```
+
+Open `http://127.0.0.1:5176/` in desktop or iOS Simulator Safari. The opt-in fixture
+route serves only named GLB files from the configured directory during dev; it
+is absent from production builds. The source scene is `src/defaultDraft.xyzdsl`.
+`VITE_MODEL_ASSET_BASE` can also configure a hosted asset base at build time.
+
+For a physical phone on the same Wi-Fi, replace `127.0.0.1` in both the host
+and asset-base URL with the computer's LAN address, then open that address and
+port in Safari. This temporarily exposes the development app and fixture models
+to reachable LAN devices; stop the server with Ctrl-C when testing finishes.
+
+Physical iPhone 11 testing of Pap confirmed loading/rendering and subsequent
+improvements to model detail and shadow edges. Patterned striping remains in
+some shadows and is deferred for a future fix. See
+[mobile rendering validation](docs/mobile-rendering-validation.md) for coverage
+and limitations.
+
+For a development-only context-loss test, append `?renderDiagnostics=1` and use
+**Test graphics recovery**. It requests context loss through `WEBGL_lose_context`
+and requests restoration one second later. Confirm the loading UI clears,
+navigation works, and the canvas `data-render-budget` reports `safe: true` and
+zero shadow bytes. Simulated context loss does not validate recovery from an
+OS process kill or prove the cause of the original phone crash.

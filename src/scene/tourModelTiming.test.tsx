@@ -4,12 +4,12 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { ModelPrimitive } from './ModelPrimitive';
 import { createSpatialDocument } from '../model/createSpatialDocument';
 import { useModelAsset, useOriginalModelAsset } from '../performance/ModelRuntime';
-const state = vi.hoisted(() => ({ frame: undefined as undefined | ((value: any) => void), pixels: 500, ahead: 500, pressure: false }));
+const state = vi.hoisted(() => ({ frame: undefined as undefined | ((value: any) => void), pixels: 500, ahead: 500, pressure: false, scaleWithHeight: false }));
 vi.mock('@react-three/fiber', () => ({ useFrame: (frame: any) => { state.frame = frame; } }));
-vi.mock('../performance/modelVisibility', async original => ({ ...(await original<any>()), modelScreenPixels: (_camera: unknown, _world: unknown, _height: number, margin?: number) => margin ? state.ahead : state.pixels }));
+vi.mock('../performance/modelVisibility', async original => ({ ...(await original<any>()), modelScreenPixels: (_camera: unknown, _world: unknown, _height: number, margin?: number) => (margin ? state.ahead : state.pixels) * (state.scaleWithHeight ? _height / 800 : 1) }));
 vi.mock('../performance/ModelRuntime', () => ({ useOriginalModelAsset: vi.fn(), useModelAsset: vi.fn(), useModelPresentation: vi.fn(), useModelRetryGeneration: () => 0, useModelMemoryPressure: () => state.pressure, useModelSceneRevealed: () => true }));
 vi.mock('../assets', () => ({ useAssetResolver: () => (url: string) => url }));
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.useRealTimers(); state.pressure = false; vi.mocked(useModelAsset).mockClear(); vi.mocked(useOriginalModelAsset).mockClear(); });
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.useRealTimers(); state.pressure = false; state.scaleWithHeight = false; vi.mocked(useModelAsset).mockClear(); vi.mocked(useOriginalModelAsset).mockClear(); });
 const node = createSpatialDocument('"Chair/+0+1/+0+1/+0+1":"model: chair.glb"').renderNodes[0];
 it('keeps full quality across tour, selection and renderer quality changes', () => {
   vi.stubGlobal('navigator', { deviceMemory: 8, hardwareConcurrency: 8 });
@@ -55,5 +55,18 @@ it('keeps offscreen originals cached without memory pressure', () => {
   const frame = () => act(() => state.frame!({ camera: {}, size: { height: 800 } }));
   frame(); state.pixels = 0; state.ahead = 0; frame();
   act(() => vi.advanceTimersByTime(60000));
+  expect(vi.mocked(useOriginalModelAsset).mock.calls.at(-1)?.[0]).toBe('chair.glb');
+});
+
+it('promotes a phone-sized model when rendered pixels justify original detail', () => {
+  vi.stubGlobal('navigator', { userAgent: 'iPhone', hardwareConcurrency: 6 });
+  state.pixels = 300; state.ahead = 300; state.scaleWithHeight = true;
+  const view = render(<ModelPrimitive node={node} />);
+  Object.assign(view.container.querySelector('group')!, { updateWorldMatrix: () => {} });
+  const gl = { getPixelRatio: () => 1, info: { render: { frame: 0 } } };
+  act(() => state.frame!({ camera: {}, size: { height: 800 }, gl }));
+  expect(vi.mocked(useOriginalModelAsset).mock.calls.at(-1)?.[0]).toBeUndefined();
+  gl.getPixelRatio = () => 1.5;
+  act(() => state.frame!({ camera: {}, size: { height: 800 }, gl }));
   expect(vi.mocked(useOriginalModelAsset).mock.calls.at(-1)?.[0]).toBe('chair.glb');
 });

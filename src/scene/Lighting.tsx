@@ -1,4 +1,7 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
+import { useThree } from '@react-three/fiber';
+import { mobileRenderBudget, shadowBudget } from '../performance/renderBudget';
+import { useSafeRendering } from '../performance/ModelRuntime';
 import type { SpatialDocument } from '../model/SpatialDocument';
 import type { SpatialNode } from '../model/SpatialNode';
 import { nodesForRoomSizing } from './roomSizing';
@@ -35,20 +38,31 @@ export function pointShadowSettings(document: SpatialDocument | undefined, posit
   return { near, far, bias: -offset / (far - near), normalBias: offset };
 }
 
-function ScenePointLight({ node, document }: { node: SpatialNode; document?: SpatialDocument }) {
+function ScenePointLight({ node, document, mapSize, castShadow }: { node: SpatialNode; document?: SpatialDocument; mapSize: number; castShadow: boolean }) {
   const shadow = pointShadowSettings(document, node.transform.position);
-  return <pointLight castShadow
+  return <pointLight castShadow={castShadow}
     position={node.transform.position} color={node.light!.color}
     intensity={node.light!.intensity} distance={node.light!.distance} decay={2}
-    shadow-mapSize={[2048, 2048]} shadow-bias={shadow.bias} shadow-normalBias={shadow.normalBias}
+    shadow-mapSize={[mapSize, mapSize]} shadow-bias={shadow.bias} shadow-normalBias={shadow.normalBias}
+    // Point-light PCF uses the same nine taps at either radius. Widen the
+    // filter for small atlases to soften stair steps without allocating more VRAM.
+    shadow-radius={mapSize <= 512 ? 2 : 1}
     shadow-camera-near={shadow.near} shadow-camera-far={shadow.far}
   />;
 }
 
 export function Lighting({ document }: { document?: SpatialDocument }) {
   const sources = useMemo(() => document ? lightNodes(document) : [], [document]);
+  const { gl } = useThree();
+  const safe = useSafeRendering();
+  const constrained = useMemo(mobileRenderBudget, []);
+  const budget = shadowBudget(sources.length, constrained, gl.capabilities.maxTextureSize, safe);
+  useEffect(() => {
+    gl.domElement.dataset.renderBudget = JSON.stringify({ ...budget, constrained, safe });
+    return () => { delete gl.domElement.dataset.renderBudget; };
+  }, [gl, budget.count, budget.mapSize, budget.estimatedBytes, budget.budgetBytes, constrained, safe]);
   return <>
     <ambientLight color="#ffffff" intensity={0.12} />
-    {sources.map(node => <ScenePointLight key={node.id} node={node} document={document} />)}
+    {sources.map((node, index) => <ScenePointLight key={`${node.id}:${budget.mapSize}:${index < budget.count}`} node={node} document={document} mapSize={budget.mapSize} castShadow={index < budget.count} />)}
   </>;
 }

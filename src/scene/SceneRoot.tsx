@@ -2,6 +2,9 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
 import { initialQuality, QUALITY } from '../performance/renderQuality';
 import type { AssetStatus } from '../performance/ModelAssetStore';
+import { RendererBoundary } from './RendererBoundary';
+import { readSafeRendering, rememberSafeRendering } from '../performance/renderBudget';
+import type { PreparationStatus } from '../performance/ModelRuntime';
 import { ModelRuntime, PERFORMANCE_CANVAS } from '../performance/ModelRuntime';
 import { Canvas } from '@react-three/fiber';
 import type { SpatialDocument } from '../model/SpatialDocument';
@@ -18,7 +21,7 @@ import { useMobileViewport } from '../ui/useMobileViewport';
 import { useViewPointTour } from './useViewPointTour';
 import { viewPoints } from './viewPoints';
 import type { OrbitControls as OrbitControlType } from 'three-stdlib';
-import type { PerspectiveCamera as ThreePerspectiveCamera } from 'three';
+import type { PerspectiveCamera as ThreePerspectiveCamera, WebGLRenderer } from 'three';
 import { cameraNodeForSelection } from './cameraSelection';
 import { CameraClipController } from './CameraClipController';
 import { EditorSelectionControls } from './EditorSelectionControls';
@@ -48,6 +51,17 @@ const DEFAULT_CAMERA_POSITION: [number, number, number] = [1.4, 1.1, 1.8];
 
 export function SceneRoot({ document: spatialDocument, selectedNodeId, onSelectNode, editorMode, selectedNodeCanEdit, editorLinearStep, editorRotationStep, linearStepChoice, onLinearStepChoiceChange, onRotationStepChange, onMoveNode, onResizeNode, onRotateNode, onCreateNode }: SceneRootProps) {
   const [quality] = useState(initialQuality);
+  const [safe, setSafe] = useState(readSafeRendering);
+  const [rendererGeneration, setRendererGeneration] = useState(0);
+  const [preparation, setPreparation] = useState<PreparationStatus>('loading');
+  const [modelRetry, setModelRetry] = useState(0);
+  const retryRenderer = () => {
+    rememberSafeRendering(); setSafe(true); setPreparation('loading'); setRendererGeneration(value => value + 1);
+  };
+  const onPreparation = useCallback((status: PreparationStatus) => {
+    setPreparation(status);
+    if (status === 'context-lost') setSafe(true);
+  }, []);
   const mobile = useMobileViewport();
   const [assetStatus, setAssetStatus] = useState<AssetStatus>();
   const cameraSizingNodes = useMemo(() => nodesForRoomSizing(spatialDocument), [spatialDocument]);
@@ -93,20 +107,26 @@ export function SceneRoot({ document: spatialDocument, selectedNodeId, onSelectN
   }, [selectedNode]);
 
   const invalidateRef = useRef<() => void>(() => {});
+  const rendererRef = useRef<WebGLRenderer | null>(null);
+  const diagnostics = import.meta.env.DEV && new URLSearchParams(location.search).has('renderDiagnostics');
   const cameraRef = useRef<ThreePerspectiveCamera>(null);
 
   return (
     <div className="scene-viewport">
+    <RendererBoundary key={rendererGeneration} onRetry={retryRenderer}>
     <Canvas
       className="scene-canvas"
       {...PERFORMANCE_CANVAS}
-      dpr={[1, QUALITY[quality].dpr]}
-      onCreated={({ invalidate }) => { invalidateRef.current = invalidate; }}
+      shadows={!safe}
+      gl={{ antialias: quality !== 'low' && !safe }}
+      dpr={[1, safe ? 1 : QUALITY[quality].dpr]}
+      fallback={<div className="scene-preparation" role="alert">This browser could not start WebGL. Try another browser or device.</div>}
+      onCreated={({ invalidate, gl }) => { invalidateRef.current = invalidate; rendererRef.current = gl; }}
       onPointerMissed={() => {
         if (cameraMode === 'orbit') onSelectNode?.(undefined);
       }}
     >
-      <ModelRuntime onStatus={import.meta.env.DEV ? setAssetStatus : undefined}>
+      <ModelRuntime onPreparation={onPreparation} retry={modelRetry} onStatus={import.meta.env.DEV ? setAssetStatus : undefined}>
       <color attach="background" args={['#151820']} />
       <PerspectiveCamera ref={cameraRef} makeDefault position={DEFAULT_CAMERA_POSITION} fov={45} near={clips.near} far={clips.far} />
       <Lighting document={spatialDocument} />
@@ -137,6 +157,19 @@ export function SceneRoot({ document: spatialDocument, selectedNodeId, onSelectN
       />
       </ModelRuntime>
     </Canvas>
+    {preparation !== 'ready' && <div className="scene-preparation" aria-live="polite" data-model-preparation={preparation}>
+      <span>{preparation === 'context-lost' ? 'Graphics were interrupted. Recovering with reduced graphics…' : preparation === 'error' ? 'The scene could not be prepared. Check its model assets or retry.' : 'Preparing your scene…'}</span>
+      {import.meta.env.DEV && preparation === 'error' && assetStatus?.errors.map(error => <small key={error}>{error}</small>)}
+      {preparation === 'error' && <button onClick={() => setModelRetry(value => value + 1)}>Retry models</button>}
+      {preparation === 'context-lost' && <button onClick={retryRenderer}>Restart viewer</button>}
+    </div>}
+    </RendererBoundary>
+    {diagnostics && <button style={{ position: 'absolute', bottom: 100, left: 12, zIndex: 30 }} onClick={() => {
+      const extension = rendererRef.current?.getContext().getExtension('WEBGL_lose_context');
+      if (!extension) return;
+      extension.loseContext();
+      setTimeout(() => extension.restoreContext(), 1000);
+    }}>Test graphics recovery</button>}
     {mobile ? point && points.length > 1 && (
       <nav className="view-point-overlays" aria-label="View point traversal">
         <span className="view-point-status" role="status">View point {(pointIndex ?? 0) + 1} of {points.length}</span>

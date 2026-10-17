@@ -11,11 +11,16 @@ import { currentModelUpgradePolicy, inspectOriginalGlb } from './modelUpgradeMem
 import { disposeModel, estimateModel, modelResources } from './modelResources';
 import { compileModel } from './compileModel';
 import { criticallyUnderpoweredDevice } from './renderQuality';
+import { readSafeRendering, rememberSafeRendering } from './renderBudget';
 
 const Context = createContext<ModelAssetStore | undefined>(undefined);
 const SelectedContext = createContext<ModelAssetStore | undefined>(undefined);
 const direct = async (url: string) => url;
 export const PERFORMANCE_CANVAS = { frameloop: 'demand' as const, dpr: [1, 1.5] as [number, number], shadows: true, gl: { antialias: true } };
+
+const SafeRendering = createContext(false);
+export const useSafeRendering = () => useContext(SafeRendering);
+export type PreparationStatus = 'loading' | 'ready' | 'error' | 'context-lost';
 
 type Presentation = { ready: boolean; error?: Error };
 class Presentations {
@@ -48,7 +53,7 @@ export function useModelPresentation(ready: boolean, error?: Error) {
     return () => { registry.entries.delete(id); registry.changed(); };
   }, [registry, id, ready, error]);
 }
-function ModelPreparation({ registry, initialized, retry, onRevealed }: { registry: Presentations; initialized: boolean; retry: () => void; onRevealed: () => void }) {
+function ModelPreparation({ registry, initialized, retry, onRevealed, onPreparation, contextLost, generation }: { generation: number; onPreparation?: (status: PreparationStatus) => void; contextLost: boolean; registry: Presentations; initialized: boolean; retry: () => void; onRevealed: () => void }) {
   const revision = useSyncExternalStore(registry.subscribe, registry.snapshot);
   const { gl, scene, camera, invalidate } = useThree();
   const entries = [...registry.entries.values()];
@@ -62,6 +67,7 @@ function ModelPreparation({ registry, initialized, retry, onRevealed }: { regist
     const controller = new AbortController();
     let frame = 0;
     setPreparationError(undefined);
+    setPreparedRevision(-1);
     // Initialize textures including offscreen models before revealing the room.
     const resources = modelResources({ scenes: [scene] });
     void Promise.resolve().then(() => {
@@ -76,23 +82,34 @@ function ModelPreparation({ registry, initialized, retry, onRevealed }: { regist
       });
     }).catch(reason => { if (!cancelled) setPreparationError(reason instanceof Error ? reason : Error(String(reason))); });
     return () => { cancelled = true; controller.abort(); cancelAnimationFrame(frame); };
-  }, [pending, revision, gl, scene, camera, invalidate, onRevealed]);
-  if (!pending && preparedRevision === revision) return null;
+  }, [pending, revision, generation, gl, scene, camera, invalidate, onRevealed]);
+  const status: PreparationStatus = contextLost ? 'context-lost' : failed || preparationError ? 'error' : !pending && preparedRevision === revision ? 'ready' : 'loading';
+  useEffect(() => { onPreparation?.(status); }, [onPreparation, status]);
+  if (onPreparation || status === 'ready') return null;
   return <Html fullscreen style={{ pointerEvents: 'auto' }}><div role="status" aria-live="polite" data-model-preparation
     style={{ position: 'absolute', inset: 0, background: '#151820', color: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12 }}>
     {failed || preparationError ? <><span>The scene could not be prepared. Retry, or check its model assets.</span><button onClick={retry}>Retry models</button></> : <span>Preparing your scene…</span>}
   </div></Html>;
 }
 
-export function ModelRuntime({ children, transport = direct, onStatus, retry = 0 }: { children: ReactNode; retry?: number; transport?: (url: string) => Promise<string>; onStatus?: (status: AssetStatus) => void }) {
-  const { gl, scene, camera, invalidate, setFrameloop } = useThree();
+export function ModelRuntime({ children, transport = direct, onStatus, onPreparation, retry = 0 }: { onPreparation?: (status: PreparationStatus) => void; children: ReactNode; retry?: number; transport?: (url: string) => Promise<string>; onStatus?: (status: AssetStatus) => void }) {
+  const { gl, scene, camera, invalidate, setFrameloop, setDpr } = useThree();
   const [presentations] = useState(() => new Presentations());
   const [recovery, setRecovery] = useState(0);
   const [contextLost, setContextLost] = useState(false);
+  const [safeRendering, setSafeRendering] = useState(readSafeRendering);
+  useLayoutEffect(() => {
+    if (safeRendering) { gl.shadowMap.enabled = false; setDpr(1); }
+  }, [safeRendering, gl, setDpr]);
   const [revealed, setRevealed] = useState(false);
   const onRevealed = useCallback(() => setRevealed(true), []);
   useEffect(() => {
-    const lost = (event: Event) => { event.preventDefault(); setContextLost(true); };
+    const lost = (event: Event) => {
+      event.preventDefault(); rememberSafeRendering(); setSafeRendering(true); setRevealed(false); setContextLost(true);
+      // Disable synchronously: a restored context must not allocate the old atlases.
+      gl.shadowMap.enabled = false;
+      console.warn('Viewer WebGL context lost; recovering without shadows.');
+    };
     const restored = () => { setContextLost(false); invalidate(); };
     gl.domElement.addEventListener('webglcontextlost', lost);
     gl.domElement.addEventListener('webglcontextrestored', restored);
@@ -256,11 +273,11 @@ export function ModelRuntime({ children, transport = direct, onStatus, retry = 0
     const off = store.subscribe(notify), offOriginal = stores!.original.subscribe(notify);
     return () => { off(); offOriginal(); };
   }, [store, stores, onStatus]);
-  return <Context.Provider value={store}><SelectedContext.Provider value={stores?.original}>
+  return <SafeRendering.Provider value={safeRendering}><Context.Provider value={store}><SelectedContext.Provider value={stores?.original}>
     <RevealedContext.Provider value={revealed}><RecoveryContext.Provider value={recovery}><PresentationContext.Provider value={presentations}>{children}
-      <ModelPreparation registry={presentations} initialized={Boolean(store) && !contextLost} onRevealed={onRevealed} retry={() => { store?.retry(); stores?.original.retry(); setRecovery(value => value + 1); }} />
+      <ModelPreparation generation={recovery} contextLost={contextLost} onPreparation={onPreparation} registry={presentations} initialized={Boolean(store) && !contextLost} onRevealed={onRevealed} retry={() => { store?.retry(); stores?.original.retry(); setRecovery(value => value + 1); }} />
     </PresentationContext.Provider></RecoveryContext.Provider></RevealedContext.Provider>
-  </SelectedContext.Provider></Context.Provider>;
+  </SelectedContext.Provider></Context.Provider></SafeRendering.Provider>;
 }
 const noopSubscribe = () => () => {};
 const zero = () => 0;

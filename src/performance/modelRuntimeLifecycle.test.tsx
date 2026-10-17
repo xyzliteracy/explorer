@@ -3,6 +3,7 @@ import { act, cleanup, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { BoxGeometry, Group, Mesh, MeshBasicMaterial, Scene } from 'three';
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { readSafeRendering } from './renderBudget';
 import { ModelRuntime, useModelAsset, useOriginalModelAsset, useModelPresentation } from './ModelRuntime';
 const mock = vi.hoisted(() => ({ load: vi.fn(), parse: vi.fn(), init: vi.fn(), compile: vi.fn(() => new Set()), canvas: undefined as HTMLCanvasElement | undefined, scene: undefined as Scene | undefined, state: undefined as any }));
 vi.mock('@react-three/fiber', () => ({ useThree: () => mock.state }));
@@ -28,9 +29,10 @@ function model() {
   return { value: { scene, scenes: [scene], parser: { retains: 'loading buffers' } } as unknown as GLTF, dispose: vi.spyOn(geometry, 'dispose') };
 }
 beforeEach(() => {
+  sessionStorage.clear();
   vi.stubGlobal('navigator', { deviceMemory: 8, userAgent: 'Chrome', hardwareConcurrency: 8 });
   mock.canvas = document.createElement('canvas'); mock.scene = new Scene(); mock.load.mockReset(); mock.parse.mockReset(); mock.init.mockClear(); mock.compile.mockClear();
-  mock.state = { gl: { domElement: mock.canvas, initTexture: mock.init, compile: mock.compile, properties: { get: () => ({ currentProgram: { isReady: () => true } }) }, getContext: () => ({ isContextLost: () => false }) }, scene: mock.scene, camera: {}, invalidate: () => {}, setFrameloop: () => {} };
+  mock.state = { gl: { shadowMap: { enabled: true }, domElement: mock.canvas, initTexture: mock.init, compile: mock.compile, properties: { get: () => ({ currentProgram: { isReady: () => true } }) }, getContext: () => ({ isContextLost: () => false }) }, scene: mock.scene, camera: {}, invalidate: () => {}, setFrameloop: () => {}, setDpr: vi.fn() };
   vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => setTimeout(() => callback(0), 0));
   vi.stubGlobal('cancelAnimationFrame', clearTimeout);
 });
@@ -55,6 +57,9 @@ it('pauses a context-lost load, disposes its stale result and recovers cleanly',
   const view = render(<ModelRuntime><Probe /></ModelRuntime>);
   await waitFor(() => expect(mock.load).toHaveBeenCalledOnce());
   await act(async () => { mock.canvas!.dispatchEvent(new Event('webglcontextlost', { cancelable: true })); finish(stale.value); });
+  expect(mock.state.gl.shadowMap.enabled).toBe(false);
+  expect(mock.state.setDpr).toHaveBeenCalledWith(1);
+  expect(readSafeRendering()).toBe(true);
   expect(stale.dispose).toHaveBeenCalledOnce(); expect(mock.compile).not.toHaveBeenCalled(); expect(mock.load).toHaveBeenCalledOnce();
   await act(async () => { mock.canvas!.dispatchEvent(new Event('webglcontextrestored')); });
   await waitFor(() => expect(view.getByText('ready')).toBeTruthy());
@@ -100,4 +105,14 @@ it('loads a required fallback even when its URL previously belonged to the optio
   await waitFor(() => expect(mock.load).toHaveBeenCalledTimes(2));
   await waitFor(() => expect(view.getByText('baseline ready')).toBeTruthy());
   expect(mock.load).toHaveBeenLastCalledWith('chair.glb');
+});
+
+it('reports preparation errors outside WebGL and retries shader preparation', async () => {
+  const status = vi.fn();
+  mock.compile.mockImplementationOnce(() => { throw Error('Shader failed'); });
+  const view = render(<ModelRuntime onPreparation={status}><span>scene</span></ModelRuntime>);
+  await waitFor(() => expect(status).toHaveBeenLastCalledWith('error'));
+  expect(view.queryByText('Retry models')).toBeNull(); // Parent owns the DOM overlay.
+  view.rerender(<ModelRuntime onPreparation={status} retry={1}><span>scene</span></ModelRuntime>);
+  await waitFor(() => expect(status).toHaveBeenLastCalledWith('ready'));
 });
