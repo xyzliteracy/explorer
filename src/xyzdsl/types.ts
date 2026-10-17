@@ -69,6 +69,9 @@ export interface XyzDslModelSpec {
   sourceDeclared?: boolean;
   fitDeclared?: boolean;
   alignDeclared?: boolean;
+  /** Imported-model XYZ Euler correction in radians, applied before fitting. */
+  reorientation?: [number, number, number];
+  reorientationDeclared?: boolean;
   diagnostics: string[];
 }
 

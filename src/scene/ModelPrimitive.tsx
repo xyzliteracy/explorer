@@ -15,6 +15,7 @@ import { modelVariantSource, originalModelSource, resolveModelVariants } from '.
 import { useAssetResolver } from '../assets';
 import { modelFitTransformFromBounds, renderedModelPrecisionScale } from './modelFit';
 import { shouldSelectFromClick } from './selectionClick';
+import { reorientModel } from './modelReorientation';
 
 function ModelFailure({ error }: { error?: Error }) {
   useModelPresentation(false, error);
@@ -63,8 +64,9 @@ export function ModelObject({ scene, fit, align, node, targetScale, onPrecisionS
     const prepared = scene.userData.xyzFitBounds;
     const validBounds = prepared && ['min', 'max'].every(key => Array.isArray(prepared[key]) && prepared[key].length === 3 && prepared[key].every((value: unknown) => typeof value === 'number' && Number.isFinite(value)));
     const bounds = validBounds ? new Box3(new Vector3(...prepared.min as [number, number, number]), new Vector3(...prepared.max as [number, number, number])) : new Box3().setFromObject(clone);
-    return { scene: clone, bounds, ownedMaterials, ownedSkeletons };
-  }, [scene, node.material.color, node.material.metalness, node.material.roughness, node.clippingPlanes]);
+    const oriented = reorientModel(clone, bounds, node.model?.reorientation);
+    return { ...oriented, ownedMaterials, ownedSkeletons };
+  }, [scene, node.material.color, node.material.metalness, node.material.roughness, node.clippingPlanes, node.model?.reorientation]);
   useEffect(() => () => { imported.ownedMaterials.forEach(material => material.dispose()); imported.ownedSkeletons.forEach(skeleton => skeleton.dispose()); }, [imported]);
   const fitted = useMemo(
     () => modelFitTransformFromBounds(imported.bounds, fit, align, targetScale),

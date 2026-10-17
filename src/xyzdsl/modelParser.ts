@@ -43,5 +43,16 @@ export function parseModelDeclaration(declarations: XyzDslPropertyDeclaration[])
     }
     else model.diagnostics.push(`Unsupported model-align "${align.value}". Expected center or floor.`);
   }
+  const reorientation = declarations.find(({ property }) => property === 'reset-axes');
+  if (reorientation) {
+    const components = reorientation.value.split(',').map(component => component.trim());
+    if (components.length !== 3 || components.some(component => component === '' || !Number.isFinite(Number(component)))) {
+      model.diagnostics.push('reset-axes requires three finite X, Y, Z angles in degrees, separated by commas.');
+    } else {
+      model.reorientation = components.map(component => Number(component) * Math.PI / 180) as [number, number, number];
+      model.reorientationDeclared = true;
+      model.declared = true;
+    }
+  }
   return model;
 }

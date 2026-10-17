@@ -42,6 +42,7 @@ const SUPPORTED_OBJECT_PROPERTIES = new Set([
   'model-detail',
   'model-fit',
   'model-align',
+  'reset-axes',
 ]);
 
 export interface XyzDslObjectPropertiesSpec {

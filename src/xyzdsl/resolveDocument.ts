@@ -89,6 +89,8 @@ function mergeModel(base: XyzDslModelSpec, override: XyzDslModelSpec): XyzDslMod
     detailSource: override.detailSource ?? (override.sourceDeclared ? undefined : base.detailSource),
     fit: override.fitDeclared ? override.fit : base.fit,
     align: override.alignDeclared ? override.align : base.align,
+    reorientation: override.reorientationDeclared ? override.reorientation : base.reorientation,
+    reorientationDeclared: override.reorientationDeclared ?? base.reorientationDeclared,
     declared: true,
     sourceDeclared: override.sourceDeclared ?? base.sourceDeclared,
     fitDeclared: override.fitDeclared ?? base.fitDeclared,

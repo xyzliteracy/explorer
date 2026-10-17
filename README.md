@@ -408,3 +408,19 @@ and requests restoration one second later. Confirm the loading UI clears,
 navigation works, and the canvas `data-render-budget` reports `safe: true` and
 zero shadow bytes. Simulated context loss does not validate recovery from an
 OS process kill or prove the cause of the original phone crash.
+
+## Imported model orientation
+
+Use `reset-axes: X, Y, Z` to correct an imported model's orientation
+before bounding-box fitting and alignment. Values are finite angles in degrees,
+using XYZ Euler order, and default to `0, 0, 0`. The correction preserves the
+asset's authored transforms and applies separately to each instance. It inherits
+with model settings; an explicit `0, 0, 0` overrides an inherited correction.
+
+```xyz
+"Pap/BedroomRug/+7141m+165c/+0+1d/+2183m+6d" : "model: lepapayer/bedroom_rug.glb; reset-axes: 90, 0, 0; model-align: floor"
+```
+
+Y is vertical. `model-align: floor` places the corrected model at the bottom of
+its target box. Ordinary `rotation` still rotates the fitted object and its
+alignment offset together; use it for scene placement after reorientation.
