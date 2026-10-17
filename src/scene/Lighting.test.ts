@@ -71,7 +71,7 @@ describe('point-shadow precision', () => {
   });
 });
 
-it('ships the Pap default draft with four explicit lights and six viewpoints', () => {
+it('ships the Pap default draft with four explicit lights and seven viewpoints', () => {
   const document = createSpatialDocument(defaultDraft);
   expect(document.diagnostics).toEqual([]);
   const lights = lightNodes(document);
@@ -79,5 +79,5 @@ it('ships the Pap default draft with four explicit lights and six viewpoints', (
   for (const light of lights) {
     expect(light.light).toEqual({ color: '#ffffff', intensity: 10, distance: 0 });
   }
-  expect(document.nodes.filter(node => node.metadata?.viewPoint)).toHaveLength(6);
+  expect(document.nodes.filter(node => node.metadata?.viewPoint)).toHaveLength(7);
 });

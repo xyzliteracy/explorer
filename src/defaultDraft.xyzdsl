@@ -31,9 +31,10 @@
 
 
 "POV+Entrance/+54d+1d/+2+1d/+38d+1d":"view-point: true; rotation: 0, 0, 0"
-"POV+Lounge/+44d+1d/+2+1d/+2+1d":"view-point: true; rotation: 0, 120, 0"
+"POV+Lounge/+44d+1d/+2+1d/+2d+1d":"view-point: true; rotation: 0, 153, 0"
 "POV+Kitchen/+7+1d/+22d+1d/+35d+1d":"view-point: true; rotation: -18, 4, 0"
-"POV+Bedroom/+100d+1d/+22d+1d/+220c+1d":"view-point: true; rotation: -12, 4, 0"
+"POV+Bedroom1/+873c+1d/+22d+1d/+25d+1d":"view-point: true; rotation: -19, -49, -19"
+"POV+Bedroom2/+1093c+1d/+22d+1d/+6d+1d":"view-point: true; rotation: 11, 138, -4"
 "POV+Bathroom/+1217c+1d/+22d+1d/+88c+1d":"view-point: true; rotation: -12, 4, 0"
 "POV+Patio/+1217c+1d/+22d+1d/+308c+1d":"view-point: true; rotation: -12, 4, 0"
 
