@@ -1,1 +1,4 @@
 @import './workspace.css';
+
+.scene-folder-input { display: grid; gap: 0.5rem; margin-block: 1rem; }
+.scene-folder-input input { max-width: 100%; }

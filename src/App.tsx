@@ -1,3 +1,5 @@
+import { useSceneAssets } from './ui/useSceneAssets';
+import { SceneAssetsPanel } from './ui/SceneAssetsPanel';
 import INITIAL_XYZDSL from './defaultDraft.xyzdsl?raw';
 import { useMobileViewport } from './ui/useMobileViewport';
 import { EditorLayout } from './ui/EditorLayout';
@@ -147,6 +149,7 @@ function summarizeLineChanges(originalSource: string, nextSource: string): LineC
 
 export default function App() {
   const [authoringSource, setAuthoringSource] = useState(INITIAL_XYZDSL);
+  const assets = useSceneAssets(setAuthoringSource);
   const [remoteBaselineAppliedToEditor, setRemoteBaselineAppliedToEditor] = useState('');
   const latestRemoteBaselineRef = useRef('');
   const isMobileViewport = useMobileViewport();
@@ -422,7 +425,7 @@ export default function App() {
   const remoteBaselineChanged = hasRemoteBaseline && remoteBaselineSource !== remoteBaselineAppliedToEditor;
 
   useEffect(() => {
-    if (!hasRemoteBaseline) {
+    if (!hasRemoteBaseline || assets.isLocal) {
       return;
     }
 
@@ -444,17 +447,28 @@ export default function App() {
 
     setRemoteBaselineAppliedToEditor(remoteBaselineSource);
     setAuthoringSource(remoteBaselineSource);
-  }, [authoringSource, hasRemoteBaseline, remoteBaselineAppliedToEditor, remoteBaselineSource]);
+  }, [authoringSource, hasRemoteBaseline, remoteBaselineAppliedToEditor, remoteBaselineSource, assets.isLocal]);
 
   const authoringChangeSummary = useMemo(
     () => summarizeLineChanges(remoteBaselineAppliedToEditor, authoringSource),
     [authoringSource, remoteBaselineAppliedToEditor],
   );
   const renderedSource = useMemo(
-    () => composeTransactionSources(authoringSource, secondaryTransactionOverlayStreams.filter((tenant) => tenant.enabled)),
-    [authoringSource, secondaryTransactionOverlayStreams],
+    () => assets.isLocal ? authoringSource : composeTransactionSources(authoringSource, secondaryTransactionOverlayStreams.filter((tenant) => tenant.enabled)),
+    [authoringSource, secondaryTransactionOverlayStreams, assets.isLocal],
   );
   const document = useMemo(() => createSpatialDocument(renderedSource), [renderedSource]);
+  const assetError = useMemo(() => {
+    if (!assets.isLocal) return '';
+    try {
+      for (const node of document.renderNodes) {
+        for (const source of [node.model?.source, node.model?.previewSource, node.model?.detailSource]) {
+          if (source) assets.resolve(source);
+        }
+      }
+      return '';
+    } catch (error) { return error instanceof Error ? error.message : String(error); }
+  }, [document, assets.isLocal, assets.resolve]);
   const selectedNode = useMemo(
     () => findNodeById(document.nodes, selectedNodeId) ?? findNodeByLineNumber(document.nodes, selectedLineNumber),
     [document.nodes, selectedLineNumber, selectedNodeId],
@@ -814,9 +828,10 @@ export default function App() {
       return;
     }
 
+    assets.useRemote();
     setAuthoringSource(remoteBaselineSource);
     setRemoteBaselineAppliedToEditor(remoteBaselineSource);
-  }, [hasAuthoringEdits, hasRemoteBaseline, remoteBaselineSource]);
+  }, [hasAuthoringEdits, hasRemoteBaseline, remoteBaselineSource, assets.useRemote]);
 
   const editorLinearStep = linearStepChoice === 'auto'
     ? (selectedNode ? linearTransformStepForNode(selectedNode) : 0.01)
@@ -824,7 +839,8 @@ export default function App() {
 
   return (
     <EditorLayout editing={appMode === 'editor'}>
-      <SceneRoot
+      {assetError ? <section className="scene-viewport"><p role="alert">{assetError}</p></section> : <SceneRoot
+        resolveAsset={assets.resolve}
         document={document}
         selectedNodeId={selectedSceneNodeId}
         onSelectNode={handleSelectNode}
@@ -839,8 +855,9 @@ export default function App() {
         onResizeNode={resizeSelectedDeclaration}
         onRotateNode={rotateSelectedDeclaration}
         onCreateNode={createProspectiveObject}
-      />
+      />}
       <XyzDslDrawer
+        assetsPanel={<SceneAssetsPanel isLocal={assets.isLocal} error={assets.error || assetError} onOpenFolder={assets.openFolder} onUseRemote={assets.useRemote} />}
         appMode={appMode}
         allowModeSwitch={!isMobileViewport}
         document={document}

@@ -14,7 +14,7 @@ import { XyzDslTreeView } from './XyzDslTreeView';
 import { SelectedNodeInspector } from './SelectedNodeInspector';
 import { usePersistentState } from './usePersistentState';
 
-type DrawerTab = 'objects' | 'source' | 'data' | 'problems';
+type DrawerTab = 'objects' | 'source' | 'assets' | 'data' | 'problems';
 
 function describeAuthoringState(
   hasRemoteBaseline: boolean,
@@ -90,6 +90,7 @@ function renderAuthoringStatus(
 }
 
 interface XyzDslDrawerProps {
+  assetsPanel?: ReactNode;
   appMode: 'viewer' | 'editor';
   allowModeSwitch?: boolean;
   document: SpatialDocument;
@@ -144,6 +145,7 @@ interface XyzDslDrawerProps {
 }
 
 export function XyzDslDrawer({
+  assetsPanel,
   allowModeSwitch = true,
   appMode,
   document,
@@ -201,6 +203,7 @@ export function XyzDslDrawer({
   const tabs: { id: DrawerTab; label: string; count?: number }[] = [
     { id: 'objects', label: 'Objects' },
     { id: 'source', label: 'Source' },
+    { id: 'assets', label: 'Assets' },
     { id: 'data', label: 'Data' },
     { id: 'problems', label: 'Problems', count: problemCount },
   ];
@@ -227,6 +230,8 @@ export function XyzDslDrawer({
               />
             </div>
           ) : null}
+
+          {activeTab === 'assets' ? <div className="drawer-tool-section">{assetsPanel}</div> : null}
 
           {activeTab === 'data' ? <div className="drawer-tool-section"><XyzDslTransactionControls
             publicKey={transactionPublicKey}

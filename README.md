@@ -163,3 +163,13 @@ The explorer application retains transaction editing and continuous transform
 controls. Its initial scene lives in `src/defaultDraft.xyzdsl`; remote asset
 configuration lives in `src/scene/remoteModelUrl.ts`. The native prototype imports
 shared source exports from `xyz-explorer` via `file:../explorer`.
+
+### Local scene assets
+
+In editor mode, open **Assets → Open scene folder** to load a folder containing
+one `scene.xyz` and its GLB files. Relative model paths resolve inside that folder;
+files stay in browser memory. Local folder mode leaves transaction overlays out
+of the scene and prevents incoming transactions from replacing the local source.
+**Use remote model store** keeps the edited source and returns model loading to
+the configured remote store. **Reset to remote** also exits local folder mode.
+Missing models appear as errors while the source and Assets controls stay editable.
