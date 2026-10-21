@@ -2,13 +2,15 @@ export type AxisName = 'x' | 'y' | 'z';
 
 export interface XyzDslAxisSpec {
   axis: AxisName;
-  offset: number;
+  offset: number | 'end';
   size: number | 'fill';
 }
 
 export interface XyzDslBoxSpec {
   /** Dimensions on these axes are unresolved until parent layout is available. */
   fillAxes?: AxisName[];
+  /** Offsets resolved as parent extent minus fixed size. */
+  endAxes?: AxisName[];
   source: string;
   x: number;
   y: number;

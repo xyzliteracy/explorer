@@ -12,8 +12,36 @@ describe('parent-relative axes', () => {
     expect(parseAxisSpec(axis, 'x')).toEqual({ axis: 'x', offset: 0, size: 'fill' });
   });
   it('supports omitted offsets with explicit sizes and metric offsets with fill', () => {
-    expect(parseAxisSpec('++2d', 'x')).toEqual({ axis: 'x', offset: 0, size: 0.2 });
+    expect(parseAxisSpec('++2d', 'x')).toEqual({ axis: 'x', offset: 'end', size: 0.2 });
     expect(parseAxisSpec('+2d+', 'x')).toEqual({ axis: 'x', offset: 0.2, size: 'fill' });
+  });
+  it('aligns all fixed axes to the far edge through namespace-only ancestors', () => {
+    const doc = scene(wall, '"Wall/Group":""', '"Wall/Group/C/++1/++2d/++1c":""');
+    expect(doc.diagnostics).toEqual([]);
+    expect(doc.renderNodes[0].box).toMatchObject({ x: 4, y: 2.8, z: .19, width: 1, height: .2, depth: .01 });
+    expect(doc.renderNodes[0].box.endAxes).toBeUndefined();
+  });
+  it.each(['whole', 'clip'])('keeps forward repetition at one far-edge copy (%s)', edge => {
+    const doc = scene(wall, `"Wall/C/++1/+0+1/+0+1":"repeat: x; repeat-gap: 1m; repeat-edge: ${edge}"`);
+    expect(doc.diagnostics).toEqual([]);
+    expect(doc.renderNodes).toHaveLength(1);
+    expect(doc.renderNodes[0].box.x).toBe(4);
+  });
+  it.each(['"C/++1/+0+1/+0+1":""', `${wall}\n"Wall/C/++6/+0+1/+0+1":""`])('rejects missing parents and oversized aligned children', source => {
+    const doc = scene(source);
+    expect(doc.diagnostics.length).toBeGreaterThan(0);
+    expect(doc.renderNodes).toHaveLength(0);
+  });
+  it('allows exact fits and resolves alignment before parent rotation', () => {
+    const doc = scene(wall.replace(': ""', ': "rotation: 0,0,90"'), '"Wall/C/++1/++3/++2d":""');
+    expect(doc.diagnostics).toEqual([]);
+    expect(doc.renderNodes[0].box).toMatchObject({ x: 4, y: 0, z: 0 });
+    expect(doc.renderNodes[0].bounds.maxY).toBeCloseTo(5);
+  });
+  it('preserves alignment when editing sizes or nudging other axes', () => {
+    const source = '"Wall/C/++1/+0+1/+0+1":""';
+    expect(moveDeclarationPath(source, 1, 'x', .1)).toBe(source);
+    expect(resizeDeclarationPath(source, 1, 'x', .1)).toContain('/++11d/');
   });
   it.each(['Wall/++/++', 'Wall/++/++/++/++', 'Wall/+++/++/++', 'Wall/+01+/++/++', 'Wall/++0/++/++', 'Wall/*/++/++'])(
     'rejects invalid axis syntax %s', path => expect(parseXyzDslDocument(`"${path}" : ""`).ok).toBe(false),
@@ -142,6 +170,15 @@ describe('repetition', () => {
 });
 
 describe('layout and references', () => {
+  it('resolves aligned template children under reference scaling', () => {
+    const doc = scene('"Template/+0+2/+0+1/+0+1":""',
+      '"Template/Part/++1/++/++":""',
+      '"Copy/+0+6/+0+2/+0+2":"ref: Template; ref-scale: true"');
+    expect(doc.diagnostics).toEqual([]);
+    const part = doc.renderNodes.find(n => n.namespacePath?.startsWith('Copy/'))!;
+    expect(part.bounds.minX).toBeCloseTo(3);
+    expect(part.bounds.maxX).toBeCloseTo(6);
+  });
   it('evaluates template child layout against each instance', () => {
     const doc = scene('"Template" : ""', '"Template/Slat/+0+1/++/++" : "repeat: x"',
       '"Copy/+0+3/+0+2/+0+1" : "ref: Template"');

@@ -17,7 +17,7 @@ interface DeclarationParts {
 }
 
 interface AxisParts {
-  offset: number;
+  offset: number | 'end';
   size: number | 'fill';
 }
 
@@ -92,13 +92,14 @@ function parseAxis(segment: string): AxisParts | undefined {
     return undefined;
   }
 
-  const offset = match.groups.offset ? parsePathNumber(match.groups.offset) : 0;
+  const offset = match.groups.offset ? parsePathNumber(match.groups.offset) : (match.groups.size ? 'end' : 0);
   const size = match.groups.size ? parsePathNumber(match.groups.size) : 'fill';
 
   return { offset, size };
 }
 
 function formatAxis(axis: AxisParts): string {
+  if (axis.offset === 'end') return `++${formatPathNumber(axis.size === 'fill' ? MIN_SIZE : axis.size)}`;
   if (axis.size === 'fill') return `+${axis.offset === 0 ? '' : formatPathNumber(axis.offset)}+`;
   return `+${formatPathNumber(axis.offset)}+${formatPathNumber(Math.max(MIN_SIZE, axis.size))}`;
 }
@@ -220,7 +221,7 @@ export function moveDeclarationPath(source: string, lineNumber: number, axis: Ax
     source,
     lineNumber,
     updatePathAxes(parts.path, (currentAxis, value) =>
-      currentAxis === axis ? { ...value, offset: Math.max(0, value.offset + delta) } : value,
+      currentAxis === axis && value.offset !== 'end' ? { ...value, offset: Math.max(0, value.offset + delta) } : value,
     ),
   );
 }

@@ -29,12 +29,13 @@ export function resolveLayout(
   function visit(object: ResolvedSpatialObject, parent?: ResolvedSpatialObject, originalParent?: ResolvedSpatialObject): void {
     const box = { ...object.box };
     const fill = box.fillAxes ?? [];
+    const end = box.endAxes ?? [];
     const repeat = object.repeat;
-    const dynamic = fill.length > 0 || repeat !== undefined;
+    const dynamic = fill.length > 0 || end.length > 0 || repeat !== undefined;
     if (repeat?.invalid) return; // The property parser already diagnosed this declaration.
     if (dynamic && !parent) {
       // Unanchored template definitions are resolved in the context of each reference.
-      if (![...templates].some(path => object.namespacePath.startsWith(path))) report(object, 'Parent fill and repetition require a concrete parent anchor.');
+      if (![...templates].some(path => object.namespacePath.startsWith(path))) report(object, 'Parent fill, far-edge alignment and repetition require a concrete parent anchor.');
       return;
     }
     if (repeat?.axes.some(axis => fill.includes(axis))) {
@@ -42,6 +43,18 @@ export function resolveLayout(
       return;
     }
     const extents = SIZES.map((size, index) => parent ? parent.box[size] / (parent.anchorScale?.[index] ?? 1) : 0);
+    for (const axis of end) {
+      const index = AXES.indexOf(axis);
+      const extent = extents[index];
+      const size = box[SIZES[index]];
+      const tolerance = 8 * Number.EPSILON * Math.max(Math.abs(extent), Math.abs(size));
+      if (!Number.isFinite(extent) || extent <= 0 || size - extent > tolerance) {
+        report(object, 'Far-edge alignment requires a finite positive parent extent and a size no larger than that extent.');
+        return;
+      }
+      box[axis] = Math.max(0, extent - size);
+    }
+    delete box.endAxes;
     for (const axis of fill) {
       const index = AXES.indexOf(axis);
       box[SIZES[index]] = extents[index] - box[axis];

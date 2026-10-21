@@ -44,7 +44,7 @@ export function parsePathAxisSpec(raw: string, axis: AxisName): XyzDslAxisSpec {
     throw new Error(`Axis ${axis.toUpperCase()} must use +offset+size syntax.`);
   }
 
-  const offset = match.groups.offset === '' ? 0 : parsePathNumber(match.groups.offset);
+  const offset = match.groups.offset === '' ? (match.groups.size === '' ? 0 : 'end') : parsePathNumber(match.groups.offset);
   const size = match.groups.size === '' ? 'fill' : parsePathNumber(match.groups.size);
 
   if (size !== 'fill' && size <= 0) {
@@ -58,12 +58,14 @@ function parseBoxSegments(segments: readonly string[], source: string): XyzDslBo
   const [xAxis, yAxis, zAxis] = segments.map((segment, index) => parsePathAxisSpec(segment, AXES[index]));
 
   const fillAxes = [xAxis, yAxis, zAxis].filter(axis => axis.size === 'fill').map(axis => axis.axis);
+  const endAxes = [xAxis, yAxis, zAxis].filter(axis => axis.offset === 'end').map(axis => axis.axis);
   return {
+    ...(endAxes.length ? { endAxes } : {}),
     ...(fillAxes.length ? { fillAxes } : {}),
     source,
-    x: xAxis.offset,
-    y: yAxis.offset,
-    z: zAxis.offset,
+    x: xAxis.offset === 'end' ? NaN : xAxis.offset,
+    y: yAxis.offset === 'end' ? NaN : yAxis.offset,
+    z: zAxis.offset === 'end' ? NaN : zAxis.offset,
     width: xAxis.size === 'fill' ? NaN : xAxis.size,
     height: yAxis.size === 'fill' ? NaN : yAxis.size,
     depth: zAxis.size === 'fill' ? NaN : zAxis.size,

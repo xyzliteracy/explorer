@@ -37,14 +37,14 @@ camera settings are automatic and require no additional DSL properties.
 ## Parent fill and repetition
 
 Paths retain three explicit X/Y/Z axis segments. Each axis is
-`+offset+size`, with either value optional. An omitted offset means zero;
+`+offset+size`, with either value optional. An omitted offset with a fixed size means **align to the parent’s far edge**;
 an omitted size means **fill the remaining parent extent from that offset**.
 The shorthand uses only existing Base64 path characters.
 
 | Segment | Meaning |
 | --- | --- |
 | `+2d+1` | Start at 20 cm; size 1 metre |
-| `++1` | Start at zero; size 1 metre |
+| `++1` | Size 1 metre; start at parent size minus 1 metre |
 | `+2d+` | Start at 20 cm; extend to the parent's far edge |
 | `+0+` or `++` | Fill the entire parent axis |
 
@@ -56,6 +56,13 @@ The shorthand uses only existing Base64 path characters.
 
 The rail is 5 metres wide. There are 25 slats, each 10 cm wide and
 3 metres tall, with 10 cm gaps. The final 10 cm of wall width remains empty.
+`++size` resolves its offset as `parentSize - size`, in the parent's local
+axis before rotation. It requires a concrete parent with a finite positive
+extent and rejects sizes larger than that extent. `++` remains the special
+case of zero offset and full parent size; `+0+size` explicitly starts at zero.
+Repetition proceeds forward from the resolved offset, so far-edge alignment
+produces one copy on that axis; backward repetition is not implied.
+
 No `expand` property is needed: the omitted axis size expresses expansion.
 Coordinate and gap units are metres without a suffix, decimetres (`d`),
 centimetres (`c`), or millimetres (`m`).
@@ -140,7 +147,12 @@ therefore edits the source shared by all copies. Moving a filled axis preserves
 its fill rule. Size nudges on filled axes leave the rule intact; enter an explicit
 size in the source to switch that axis back to fixed sizing.
 
-For compiler consumers, `parseAxisSpec` returns `size: 'fill'` for omitted sizes.
+Position nudges preserve far-edge alignment; enter an explicit offset in the
+source to move freely. Size nudges change the fixed size while retaining alignment.
+
+For compiler consumers, `parseAxisSpec` returns `offset: 'end'` for `++size`
+and `size: 'fill'` for omitted sizes. Parsed boxes carry `endAxes` with unresolved
+(`NaN`) offsets; layout resolves these and removes `endAxes`.
 Parsed boxes carry `fillAxes`; their corresponding numeric dimensions are
 unresolved (`NaN`). Use `resolveXyzDslDocument` or `createSpatialDocument` before
 consuming dimensions for geometry. Resolved boxes have finite dimensions and no
