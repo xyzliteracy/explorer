@@ -173,3 +173,18 @@ of the scene and prevents incoming transactions from replacing the local source.
 **Use remote model store** keeps the edited source and returns model loading to
 the configured remote store. **Reset to remote** also exits local folder mode.
 Missing models appear as errors while the source and Assets controls stay editable.
+
+### Integrated XYZ bundles
+
+**Assets → Open XYZ bundle** opens a self-contained `.xyz` archive without
+extracting it. Version 1 uses an uncompressed ZIP (STORE), with `scene.xyz` at
+the root and GLB files at the relative paths declared by that scene. Include
+prepared `.preview.glb`, `.standard.glb`, and `.detail.glb` siblings when available.
+Model files must embed their textures and buffers. Plain-text declarations still
+belong in the Source editor or in `scene.xyz` inside a selected folder.
+
+The loader reads the archive directory and creates model URLs from file slices,
+so opening a large bundle does not require decompressing all models into JavaScript
+memory. ZIP64, encryption, and compressed ZIP entries are not supported by v1.
+Local bundles use the same source editing, error display, resource cleanup, and
+remote-store switching as scene folders.

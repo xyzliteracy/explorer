@@ -857,7 +857,7 @@ export default function App() {
         onCreateNode={createProspectiveObject}
       />}
       <XyzDslDrawer
-        assetsPanel={<SceneAssetsPanel isLocal={assets.isLocal} error={assets.error || assetError} onOpenFolder={assets.openFolder} onUseRemote={assets.useRemote} />}
+        assetsPanel={<SceneAssetsPanel isLocal={assets.isLocal} error={assets.error || assetError} onOpenBundle={assets.openBundle} onOpenFolder={assets.openFolder} onUseRemote={assets.useRemote} />}
         appMode={appMode}
         allowModeSwitch={!isMobileViewport}
         document={document}
