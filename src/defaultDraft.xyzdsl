@@ -1,0 +1,84 @@
+"Pap/+2+109d/+100c+300c/+10c+397c":""
+
+"Pap/Ceiling/+0+109d/+300c+1c/+0+397c":"color: white; observable: +y"
+"Pap/Plaster/+0+638c/+290c+5c/+0+397c":"color: white;"
+"Pap/PlasterCut/+5d+538c/+29d+5c/+5d+297c":"operation: subtraction"
+"Pap/Inner1/+10d+198c/+29d+5c/+9d+217c":"color: white;"
+"Pap/Inner1Cut/+15d+10d/+29d+5c/+15d+10d":"operation: subtraction;"
+"Pap/Inner2/+34d+198c/+29d+5c/+9d+217c":"color: white;"
+"Pap/Inner2Cut/+389c+1/+29d+5c/+15d+1":"operation: subtraction;"
+
+"Pap/FloralLights/+183c+34c/+232c+671m/+193c+301m":"model: lepapayer/floral_lights.glb; rotation: 0, 0, 0"
+"Pap/TriadLights/+421c+47c/+24d+591m/+193c+301m":"model: lepapayer/abstract_lights.glb; rotation: 0, 0, 0"
+
+"Pap/FloralLightSource/+183c+34c/+2075m+7c/+193c+301m":"light-source: true; light-color: #ffffff; light-intensity: 10; light-distance: 0"
+"Pap/TriadLightSource/+4234m+34c/+2075m+7c/+193c+301m":"light-source: true; light-color: #ffffff; light-intensity: 10; light-distance: 0"
+
+
+"Pap/FrontWall/+0+109d/+0+300c/+0+1c":"color: white; observable: -z"
+"Pap/BackWall/+0+109d/+0+300c/+397c+1c":"color: white; observable: +z"
+"Pap/LeftWall/+0+1c/+0+300c/+0+397c":"color: white;"
+"Pap/RightWall/+109d+1c/+0+300c/+0+397c":"color: white;"
+
+"Flooring/+2+109d/+66c+1c/+1d+397c":"color: white;"
+"Flooring/Tiling/+0+6d/+0+6d/+0+6d":"model: lepapayer/floor_tiling.glb; rotation: 90,0,0; repeat: x,z; repeat-gap: 1m; repeat-edge: clip"
+
+"Pap/MainDoor/+26d+1/+0+22d/+387c+21c":"model: lepapayer/oak_door.glb"
+"Pap/MainOpening/+270c+80c/+0+210c/+397c+1c":"operation: subtraction"
+
+"Pap/LeftWindow/+0+1d/+100c+115c/+47c+292c" : "operation: subtraction"
+
+
+"POV+Entrance/+54d+1d/+2+1d/+38d+1d":"view-point: true; rotation: 0, 0, 0"
+"POV+Lounge/+44d+1d/+2+1d/+2d+1d":"view-point: true; rotation: 0, 153, 0"
+"POV+Kitchen/+7+1d/+22d+1d/+35d+1d":"view-point: true; rotation: -18, 4, 0"
+"POV+Bedroom1/+873c+1d/+22d+1d/+25d+1d":"view-point: true; rotation: -19, -49, -19"
+"POV+Bedroom2/+1093c+1d/+22d+1d/+6d+1d":"view-point: true; rotation: 11, 138, -4"
+"POV+Bathroom/+1217c+1d/+22d+1d/+88c+1d":"view-point: true; rotation: -12, 4, 0"
+"POV+Patio/+1217c+1d/+22d+1d/+308c+1d":"view-point: true; rotation: -12, 4, 0"
+
+"Pap/GeometricArt/+235c+48c/+103c+1/+0+101m" : "model: lepapayer/geometric_art.glb"
+"Pap/GlassTable/+1139m+108c/+0+43c/+1582m+58c" : "model: lepapayer/glassy_table.glb; rotation: 0, 90, 0"
+"Pap/Television/+952m+101c/+11d+61c/+0+6d" : "model: lepapayer/wall_television.glb"
+"Pap/GoldLamp/+11c+4d/+43c+6d/+337c+4d" : "model: lepapayer/golden_lamp.glb"
+"Pap/OttomanStool/+2083m+4d/+0+36c/+1694m+38c" : "model: lepapayer/ottoman_stool.glb"
+"Pap/DiningStool1/+3035m+6d/+0+9d/+0+5d" : "model: lepapayer/bar_stool.glb; rotation: 0, 90, 0"
+"Pap/DiningStool2/+3035m+6d/+0+9d/+7d+5d" : "model: lepapayer/bar_stool.glb; rotation: 0, 90, 0"
+"Pap/DiningStool3/+3035m+6d/+0+9d/+13d+5d" : "model: lepapayer/bar_stool.glb; rotation: 0, 90, 0"
+"Pap/CookingHub/+5252m+57c/+81c+1d/+4c+6d" : "model: lepapayer/cooking_hub.glb; model-align: floor"
+"Pap/WallLamp/+5691m+1d/+22d+3d/+0+101m" : "model: lepapayer/wall_lamp.glb"
+"Pap/WallLamp2/+891m+1d/+22d+3d/+0+101m" : "model: lepapayer/wall_lamp.glb"
+"Pap/LoungeAC/+1c+3d/+248c+4d/+56c+129c" : "model: lepapayer/air_conditioner.glb; reset-axes: 0, 90, 0"
+
+"Pap/BedroomDoor/+594c+1/+0+22d/+283c+21c":"model: lepapayer/oak_door.glb; rotation: 0, 270, 0"
+"Pap/BedRoomLeft/+638c+13c/+0+3/+11m+397c" : "color: white"
+"Pap/BedRoomOpening/+638c+13c/+0+22d/+2451m+97c" : "operation: subtraction"
+
+"Pap/BedroomLightSource/+7934m+34c/+2475m+7c/+222c+301m":"light-source: true; light-color: #ffffff; light-intensity: 10; light-distance: 0"
+
+"Pap/BedroomRight/+95d+13c/+0+297c/+11m+398c" : "color: white"
+
+"Pap/PatioOpening/+95d+13c/+0+207c/+2111m+98c" : "operation: subtraction"
+
+"Pap/BedroomCurtain/+887c+115c/+0+214c/+2111m+98c" : "model: lepapayer/bedroom_curtains.glb; rotation: 0, 270, 0"
+
+"Pap/ToiletOpening/+95d+13c/+8c+17d/+51m+68c" : "operation: subtraction"
+
+"Pap/ToiletBack/+9552m+133c/+0+3/+19d+1d" : "color: white"
+"Pap/ToiletWindow/+9752m+103c/+19d+5d/+19d+1d" : "operation: subtraction"
+
+"Pap/ToiletLightSource/+10134m+34c/+2475m+7c/+93c+301m":"light-source: true; light-color: #ffffff; light-intensity: 10; light-distance: 0"
+
+"Pap/Drawers/+6641m+165c/+0+7d/+3453m+6d" : "model: lepapayer/bedroom_drawers.glb; rotation: 0, 180, 0"
+"Pap/Bedside1/+6518m+51c/+0+38c/+0+4d" : "model: lepapayer/bedside_table.glb"
+"Pap/Bedside2/+8658m+51c/+0+38c/+0+4d" : "model: lepapayer/bedside_table.glb"
+"Pap/BedroomTV/+9102m+41c/+11d+61c/+9d+84c" : "model: lepapayer/wall_television.glb; reset-axes: 0, 270, 0"
+"Pap/BedroomAC/+9192m+3d/+236c+4d/+124c+129c" : "model: lepapayer/air_conditioner.glb; reset-axes: 0, 270, 0"
+
+"Pap/Closet/+8292m+1d/+0+3/+3241m+74c" : "color: white"
+"Pap/ClosetDoor/+8222m+137c/+0+299c/+3181m+2d" : "model: lepapayer/closet_door.glb; reset-axes: 0, 180, 0"
+
+"Pap/BedroomRug/+7021m+15d/+0+3c/+2183m+8d" : "model: lepapayer/bedroom_rug.glb; reset-axes: 90, 0, 90; model-align: floor"
+"Pap/BedroomArt/+6448m+2d/+11d+1/+745m+137c" : "model: lepapayer/bedroom_art.glb; reset-axes: 0, 90, 0"
+"Pap/BathroomDoor/+9487m+2d/+8c+17d/+2c+74c" : "model: lepapayer/bathroom_door.glb; reset-axes: 0, 270, 0"
+"Pap/BedroomChair/+8859m+5d/+0+6d/+237c+4d" : "model: lepapayer/dressing_chair.glb; reset-axes: 0, 270, 0"

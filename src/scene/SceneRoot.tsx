@@ -1,5 +1,5 @@
-import { SceneRoot as CoreSceneRoot } from '@xyz/viewer/scene/SceneRoot';
-import { AssetResolver } from '@xyz/viewer/assets';
+import { SceneRoot as CoreSceneRoot } from './CoreSceneRoot';
+import { AssetResolver } from '../assets';
 import { resolveModelUrl } from './remoteModelUrl';
 import type { ComponentProps } from 'react';
 export function SceneRoot(props: ComponentProps<typeof CoreSceneRoot>) {

@@ -1,0 +1,13 @@
+export { SceneRoot } from './scene/SceneRoot';
+export { createSpatialDocument } from './model/createSpatialDocument';
+export { AssetResolver } from './assets';
+export type { SpatialDocument } from './model/SpatialDocument';
+export { openLocalScene } from './localScene';
+export { VisualEditor } from './ui/VisualEditor';
+export { WorkspacePanel } from './ui/WorkspacePanel';
+export { EditorLayout } from './ui/EditorLayout';
+export { SpatialScene } from './scene/SpatialScene';
+export { parseXyzDslDocument, parseXyzDslDeclaration } from './xyzdsl/parser';
+export { resolveXyzDslDocument } from './xyzdsl/resolveDocument';
+export type { SpatialNode } from './model/SpatialNode';
+export type { ParseDiagnostic, ParseResult } from './xyzdsl/types';

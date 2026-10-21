@@ -152,19 +152,14 @@ See [docs/implementation-plan.md](docs/implementation-plan.md) for architecture 
 
 Rendering quality is automatic; there is no viewer quality selector or saved user override. XYZDSL authors supply model variants with `model`, `model-preview`, and `model-detail` (or inferred siblings). The renderer chooses visibility tiers within device limits and caps pixel density for constrained devices. This keeps scene content in XYZDSL while adapting rendering cost to the device.
 
-## Shared web rendering core
+## Consolidated internals
 
-Rendering, XYZDSL parsing, spatial models, camera navigation, and model resource
-management now come from the standalone sibling `xyz-viewer` repository through
-`@xyz/viewer` (`file:../xyz-viewer`). Keep that checkout beside this repository,
-then run `npm install`. Compatibility modules preserve existing internal imports.
-Core rendering tests now live in the viewer repository; run `npm test` in both.
-The explorer owns transaction fetching/composition and its remote model store
-configuration in `src/scene/remoteModelUrl.ts`.
+Explorer owns the XYZDSL parser, spatial model, renderer, defaults, settings,
+asset lifecycle, and object inspector. See [SPECIFICATION.md](SPECIFICATION.md)
+for the supported language and runtime behavior. Run `npm ci`, `npm test`, and
+`npm run build` in this directory; no standalone viewer checkout is required.
 
-
-`npm run core:update` fast-forwards the sibling core checkout and refreshes its
-locked dependencies and this application's install. Specification changes are
-implemented/tested in `xyzspec/xyzdsl`; no parser or renderer copies belong here.
-The Pages workflow checks out that core alongside explorer on every deployment.
-Already published web assets acquire updates when rebuilt and redeployed.
+The explorer application retains transaction editing and continuous transform
+controls. Its initial scene lives in `src/defaultDraft.xyzdsl`; remote asset
+configuration lives in `src/scene/remoteModelUrl.ts`. The native prototype imports
+shared source exports from `xyz-explorer` via `file:../explorer`.

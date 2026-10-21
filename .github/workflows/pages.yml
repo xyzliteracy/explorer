@@ -26,30 +26,17 @@ jobs:
         with:
           path: explorer
 
-      - name: Checkout primary XYZDSL core
-        uses: actions/checkout@v4
-        with:
-          repository: xyzspec/xyzdsl
-          ref: main
-          path: xyz-viewer
-
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: |
-            explorer/package-lock.json
-            xyz-viewer/package-lock.json
-
-      - name: Install core dependencies
-        run: npm ci
-        working-directory: xyz-viewer
+          cache-dependency-path: explorer/package-lock.json
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Test explorer against primary core
+      - name: Test explorer
         run: npm test
 
       - name: Build for GitHub Pages

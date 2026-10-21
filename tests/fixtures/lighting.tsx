@@ -3,9 +3,9 @@ import { createRoot } from 'react-dom/client';
 import { Canvas, useThree } from '@react-three/fiber';
 import { useEffect } from 'react';
 import { DoubleSide } from 'three';
-import { Lighting } from '@xyz/viewer/scene/Lighting';
-import { SpatialScene } from '@xyz/viewer/scene/SpatialScene';
-import { createSpatialDocument } from '@xyz/viewer/model/createSpatialDocument';
+import { Lighting } from '../../src/scene/Lighting';
+import { SpatialScene } from '../../src/scene/SpatialScene';
+import { createSpatialDocument } from '../../src/model/createSpatialDocument';
 const panels = `"+0+4/+0+1d/+0+4" : "color: white"
 "+0+4/+4+1d/+0+4" : "color: white"
 "+0+1d/+0+4/+0+4" : "color: white"

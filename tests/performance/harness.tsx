@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { _roots } from '@react-three/fiber';
 import { SceneRoot } from '../../src/scene/SceneRoot';
 import { ModelAssetStore } from '../../src/performance/ModelAssetStore';
-import { modelScreenPixels } from '@xyz/viewer/performance/modelVisibility';
+import { modelScreenPixels } from '../../src/performance/modelVisibility';
 import { createSpatialDocument } from '../../src/model/createSpatialDocument';
 const room = new URLSearchParams(location.search).get('scene') === 'lepapayer';
 const source = (await (await fetch(room ? '/tests/fixtures/lepapayer.xyz' : '/performance-models/performance.xyz')).text()).replace(/(model(?:-preview|-detail)?:\s*)([^;"\s]+\.glb)/g, (_, prefix, file) => prefix + location.origin + (room ? '/' : '/performance-models/') + file);

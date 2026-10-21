@@ -1,4 +1,4 @@
-import { WorkspacePanel } from '@xyz/viewer/ui/WorkspacePanel';
+import { WorkspacePanel } from './WorkspacePanel';
 import type { ReactNode } from 'react';
 import type { SpatialDocument } from '../model/SpatialDocument';
 import type { SpatialNode } from '../model/SpatialNode';

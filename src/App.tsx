@@ -1,3 +1,4 @@
+import INITIAL_XYZDSL from './defaultDraft.xyzdsl?raw';
 import { useMobileViewport } from './ui/useMobileViewport';
 import { EditorLayout } from './ui/EditorLayout';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -25,42 +26,6 @@ import { XyzDslDrawer } from './ui/XyzDslDrawer';
 import { usePersistentState } from './ui/usePersistentState';
 import { linearTransformStepForNode } from './model/transformStep';
 import type { LinearStepChoice, RotationStep } from './ui/SelectedNodeInspector';
-
-const INITIAL_XYZDSL = `"Pap/+2+109d/+100c+300c/+10c+397c":""
-
-"Pap/Ceiling/+0+109d/+300c+1c/+0+397c":"color: white;"
-"Pap/FrontWall/+0+109d/+0+300c/+0+1c":"color: white;"
-"Pap/BackWall/+0+109d/+0+300c/+397c+1c":"color: white;"
-"Pap/LeftWall/+0+1c/+0+300c/+0+397c":"color: white;"
-"Pap/RightWall/+109d+1c/+0+300c/+0+397c":"color: white;"
-"Pap/Flooring/+0+109d/+0+1c/+0+397c":"color: white;"
-
-"Pap/MainDoor/+26d+1/+0+22d/+387c+21c":"model: lepapayer/oak_door.glb"
-"Pap/MainOpening/+270c+80c/+0+210c/+397c+1c":"operation: subtraction"
-
-"Pap/LeftWindow/+0+1d/+100c+115c/+47c+292c" : "operation: subtraction"
-"LeftCurtain/+61c+3208m/+103c+239c/+1258m+15d" : "model: lepapayer/lounge_curtain.glb; rotation: 0, 90, 0"
-
-"Pap/BedRoomLeft/+638c+13c/+0+3/+11m+274c" : "color: white"
-
-"Pap/ToiletLeft/+95d+13c/+0+297c/+11m+188c" : "color: white"
-"Pap/ToiletBack/+9552m+133c/+0+3/+19d+1d" : "color: white"
-
-"POV+1/+54d+1d/+2+1d/+38d+1d":"view-point: true; rotation: 0, 0, 0"
-"POV+2/+44d+1d/+2+1d/+2+1d":"view-point: true; rotation: 0, 120, 0"
-"POV+3/+7+1d/+22d+1d/+35d+1d":"view-point: true; rotation: -18, 4, 0"
-"POV+4/+10+1d/+22d+1d/+34d+1d":"view-point: true; rotation: -12, 4, 0"
-
-"Pap/Bed/+7+166c/+1c+113c/+0+213c":"model: lepapayer/bed.glb; model-align: floor"
-"Pap/Sofa/+55c+210c/+0+1/+307c+1":"model: lepapayer/sofa.glb; model-align: floor; rotation: 0, 180, 0"
-"Pap/SofaTable/+35m+54c/+0+43c/+3363m+46c" : "model: lepapayer/round_stool.glb;"
-"Pap/FlowerPot/+2c+76c/+0+16d/+0+91c" : "model: lepapayer/potted_plant.glb"
-"Pap/Console/+94c+16d/+0+5d/+0+45c" : "model: lepapayer/media_console.glb"
-"Pap/LoungeArt/+235c+48c/+123c+1/+0+101m" : "model: lepapayer/geometric_art.glb"
-"Pap/BrownArmChair/+154m+8d/+0+6d/+2171m+7d" : "model: lepapayer/brown_armchair.glb; rotation: 0, 90, 0"
-"Pap/GreyArmChair/+154m+8d/+0+6d/+1217m+7d" : "model: lepapayer/grey_armchair.glb; rotation: 0, 90, 0"
-"LoungeRug/+309c+1281m/+22c+161c/+19d+2c" : "model: lepapayer/lounge_rug.glb; model-align: floor; rotation: 90, 0, 0"
-"Pap/KitchenStudio/+3408m+301c/+0+209c/+1c+289c" : "model: lepapayer/kitchen_studio.glb;"`;
 
 const DEFAULT_TRANSACTION_ENDPOINT = 'wss://sure-formerly-filly.ngrok-free.app/00000000e29a7850088d660489b7b9ae2da763bc3bd83324ecc54eee04840adb';
 const DEFAULT_SECONDARY_TRANSACTION_ENDPOINT = 'wss://ungallant-unimpeding-kade.ngrok-free.dev/000006913ccf73b5990eb4833e4cdbd5ef58061384481ff1f6cee3cb7f18b2cd';
