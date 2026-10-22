@@ -5,7 +5,7 @@ import type { CsgExpression, CsgOperationNode } from '../model/csg';
 import type { SpatialNode } from '../model/SpatialNode';
 import { bufferGeometryForSpatialGeometry } from './primitiveGeometry';
 
-function brushFor(node: SpatialNode): Brush {
+export function brushFor(node: SpatialNode): Brush {
   const brush = new Brush(bufferGeometryForSpatialGeometry(node.geometry));
   const { position, rotation, scale } = node.transform;
   brush.position.set(...position);

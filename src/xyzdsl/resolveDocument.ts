@@ -23,6 +23,10 @@ export interface ResolvedSpatialObject extends SpatialObject {
   parentNamespacePath: string;
   renderable: boolean;
   surfaceSourceId?: string;
+  attachedPanelId?: string;
+  attachmentEnclosureId?: string;
+  attachmentFrame?: boolean;
+  repeatGroupId?: string;
   surfaceFace?: string;
   layoutEligible?: boolean;
   materializedFrom?: string;
@@ -437,6 +441,14 @@ export function resolveXyzDslDocument(objects: SpatialObject[]): {
   };
   objects = objects.map(object => {
     const boxSurface = surfaceFor(object);
+    let attachmentSource = object;
+    while (!attachmentSource.surface && attachmentSource.reference.targetPath) {
+      const target = latestEntryBefore(objects, attachmentSource.reference.targetPath, attachmentSource.lineNumber);
+      if (!target) break;
+      attachmentSource = target;
+    }
+    object = { ...object, surface: attachmentSource.surface };
+    if (object.declarationOnly && object.surface) diagnostics.push({ line: object.lineNumber, source: object.source, message: 'surface requires a concrete declaration.' });
     return { ...object, boxSurface, material: boxSurface ? { ...object.material, observable: undefined } : object.material };
   });
   const effectiveObjects = latestNamedEntries(objects);

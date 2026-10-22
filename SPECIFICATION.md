@@ -88,8 +88,8 @@ shared model asset. Shader clipping does not add solid caps across cut faces.
 Selection rays and tour collision ignore the cropped portions (including
 triangles crossing an edge). Selection/overlap bounds intersect the clipping
 region, while retaining the existing conservative world-AABB approximation.
-Primitive CSG operands are clipped before boolean evaluation; imported-model CSG
-remains unsupported. Content cards, including HTML overlays, are not supported
+Primitive CSG operands are clipped before boolean evaluation. Static imported
+models can be CSG targets as described under surface attachments below. Content cards, including HTML overlays, are not supported
 inside clipped subtrees and are omitted with a diagnostic.
 
 For parent length `P`, offset `o`, size `s`, and gap `g`, fill resolves to
@@ -545,6 +545,110 @@ Corner cuts can affect multiple panels. Each result retains its panel material,
 observability, selection owner, and existing CSG rendering/collision behavior.
 Tools are consumed once, and successive operations retain source order.
 Union retains a single selected panel as its base so the added solid is emitted
-only once. Imported-model CSG remains unsupported; the enclosure declaration
-itself still cannot carry an `operation`. Omitted panels cannot be CSG targets.
+only once. Static imported models can also be CSG targets; imported models
+cannot serve as tools. The enclosure declaration itself cannot carry an `operation`. Omitted panels cannot be CSG targets.
 Clipped primitives continue to use the existing operand clipping rules.
+
+
+## Surface-attached components
+
+`surface` attaches a concrete child to the interior faces of its nearest concrete
+`box-surface` parent. It accepts `walls` (left, front, right, back), `all` (all six
+faces), or distinct comma-separated face names. It is local, not inherited by
+ordinary children; references retain it. Namespace-only declarations cannot
+attach. An explicit missing face produces a diagnostic and no copy for that
+face; `walls` and `all` silently skip omitted panels.
+
+```xyzdsl
+"Sal/+10d+366c/+10d+330c/+10d+391c":"box-surface: 1d white; observable: true;"
+"Sal/Tiling/+0+85c/+0+86c/+0+2c":"surface: walls; model: salouis/tile_triad.glb; reset-axes: 90,0,0; repeat: x; repeat-gap: 1m; repeat-edge: clip;"
+```
+
+Attachment coordinates are face-local: X goes across the face, Y goes up the
+face, and positive Z extends from its interior surface into the room. For walls,
+Y is always enclosure +Y. The following basis vectors are in enclosure-local
+axes, and origins are corners of the clear interior:
+
+| Face | Origin | Local X | Local Y | Local Z |
+| --- | --- | --- | --- | --- |
+| front | left/bottom/front | +X | +Y | +Z |
+| back | right/bottom/back | −X | +Y | −Z |
+| left | left/bottom/back | −Z | +Y | +X |
+| right | right/bottom/front | +Z | +Y | −X |
+| top | left/top/front | +X | +Z | −Y |
+| bottom | left/bottom/back | +X | −Z | +Y |
+
+Each copy uses the same source dimensions and offsets. `reset-axes` corrects an
+asset once before fitting, then the face frame places it. Ordinary `rotation`
+is relative to that frame. Fill, far-edge alignment, and repetition operate in
+face axes. Depth fill uses the full clear interior dimension normal to the face.
+`repeat: x` repeats independently across each face; `x,y` forms a grid. Clipping
+uses the face-local repeat boundaries, not world X/Y/Z. There is no automatic
+corner wrapping, pattern centering, corner trimming, or mitering.
+
+An attachment and its descendants follow the owning panel's observability
+using that panel's center plane, including imported model meshes. Hidden
+attachments do not render, cast shadows, or intercept selection rays; physical
+collision remains active. Ordinary furniture is unaffected. CSG results retain
+this behavior. Attachments on removed faces are not generated.
+
+Attachment frames and copies count against the shared generated-node budget.
+Internal identities are deterministic and source line ownership is retained;
+selecting a copy edits its shared authored declaration. Children are copied
+with the attachment. Models and primitives are supported; content cards,
+lights, and viewpoints cannot be directly attached.
+
+### CSG with repetitions and imported targets
+
+A primitive tool with `operation` can target repeated primitives or static
+imported models. Subtraction/intersection fan out to all overlapping instances
+of the selected repetition group; union still emits the added solid only once
+on the selected base. Each repeated cutter is evaluated in source order. Groups
+are scoped to their concrete parent/reference instance, so unrelated copies
+are not accidentally modified. Non-overlapping instances remain unchanged.
+
+When the selected target is an enclosure panel **or a surface attachment**, the
+same tool applies to overlapping panels and attachments of that enclosure.
+This makes one window tool cut both the wall and its tile finish. Ordinary
+furniture is not included in that group. Existing source-order and namespace
+preferences still determine the initial target. Intersection is per overlapping
+piece, not intersection of the entire room or repetition set.
+
+GLB processing happens on instance-owned static meshes after orientation and
+fitting, before display. Shared source buffers remain unchanged. Existing UVs,
+vertex colors, tangents, and material groups are retained; newly cut faces use the affected mesh's first
+material and the primitive tool's UVs. Untextured parts without UV attributes
+receive neutral coordinates. Cuts preserve the original target box and fitting
+rather than shrinking and refitting the remaining geometry. Rendered triangle
+picking and collision use the cut geometry; authoring bounds remain conservative.
+The active streamed asset tier is cut independently, so geometric detail may
+change when a higher-quality asset becomes available.
+
+Imported models remain unsupported as CSG *tools*. Skinned, instanced, or
+morph-target meshes are not supported as imported CSG targets. They produce a
+model preparation error rather than silently showing an uncut asset. Work is
+limited to 2,000,000 input triangles × operations per model instance. Primitive
+tools retain their repetition clipping; imported target geometry retains its
+rendering/shadow/raycast clipping. Model union adds the tool solid to the first
+mesh once; it does not merge the asset's original meshes into one solid. Valid,
+closed mesh inputs are recommended; non-manifold or self-intersecting imported
+geometry can produce imperfect boolean results.
+
+
+For example, append this world-space tool after the Sal tiling declaration to
+cut the front wall and overlapping tiles together:
+
+```xyzdsl
+"WindowCut/+2+1/+13d+5d/+9d+4d":"operation: subtraction;"
+```
+
+The tool spans X=2–3, Y=1.3–1.8, Z=0.9–1.3 metres, crossing both the wall and
+the inward tile finish. Keep the cutter after the intended targets. Attached
+components use face coordinates, while this sibling cutter uses world coordinates.
+
+Regression coverage lives in `src/xyzdsl/surfaceAttachment.test.ts` and
+`src/scene/modelCsg.test.ts`, alongside the existing enclosure CSG tests. Checks
+cover orientation, clipping, references, missing faces, repeated cutters,
+shared-asset preservation, material groups, and picking/collision through cuts.
+Run `npm test` and `npm run build` in Explorer, and `npm run build:renderer`
+in the native viewer after shared renderer changes.

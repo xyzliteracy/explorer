@@ -1,3 +1,4 @@
+import { parseSurfaceAttachment } from './surfaceAttachment';
 import { SURFACE_PROPERTIES } from './boxSurfaceParser';
 import { parseRepeatDeclaration } from './repeatParser';
 import { parseContentDeclaration } from './contentParser';
@@ -19,6 +20,7 @@ const SUPPORTED_OBJECT_PROPERTIES = new Set([
   ...SUPPORTED_MATERIAL_KEYS,
   ...SURFACE_PROPERTIES,
   'box-surface',
+  'surface',
   'view-point',
   'light-source',
   'light-intensity',
@@ -49,6 +51,7 @@ const SUPPORTED_OBJECT_PROPERTIES = new Set([
 ]);
 
 export interface XyzDslObjectPropertiesSpec {
+  surface?: import('./surfaceAttachment').SurfaceAttachment;
   surfaceDeclarations?: import('./propertyParser').XyzDslPropertyDeclaration[];
   boxSurface?: import('./types').XyzDslBoxSurfaceSpec | null;
   repeat?: import('./types').XyzDslRepeatSpec;
@@ -100,6 +103,7 @@ export function parseObjectProperties(source: string): XyzDslObjectPropertiesSpe
 
   return {
     surfaceDeclarations: declarations.filter(d => d.property === 'box-surface' || d.property === 'observable' || SURFACE_PROPERTIES.includes(d.property)),
+    surface: parseSurfaceAttachment(declarations, diagnostics),
     repeat,
     light: enabled ? { intensity, distance, color: lightMaterial.color ?? '#ffffff' } : undefined,
     viewPoint: marker?.value === 'true',

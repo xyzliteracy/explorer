@@ -55,6 +55,7 @@ function applyRenderableStateToTree(
       unionGroupId: state?.unionGroupId ?? node.unionGroupId,
       csgExpressionId: state?.csgExpressionId ?? node.csgExpressionId,
       csgConsumed: state?.csgConsumed ?? node.csgConsumed,
+      modelCsgOperations: state?.modelCsgOperations,
       children: node.children ? applyRenderableStateToTree(node.children, renderableNodes) : undefined,
     };
   });
@@ -140,6 +141,10 @@ export function createSpatialDocument(source: string): SpatialDocument {
           reference: object.reference.targetPath,
           materializedFrom: object.materializedFrom,
           anchorScale: object.anchorScale,
+          attachedPanelId: object.attachedPanelId,
+          attachmentEnclosureId: object.attachmentEnclosureId,
+          attachmentFrame: object.attachmentFrame,
+          repeatGroupId: object.repeatGroupId,
           surfaceSourceId: object.surfaceSourceId,
           surfaceFace: object.surfaceFace,
           repeatSourceId: object.repeatSourceId,
@@ -158,10 +163,16 @@ export function createSpatialDocument(source: string): SpatialDocument {
       }
     });
 
+  const allNodes = [...nodesByNamespace.values()];
+  const byId = new Map(allNodes.map(node => [node.id, node]));
+  for (const node of allNodes) {
+    const panel = byId.get(node.metadata?.attachedPanelId as string);
+    if (panel) node.surfaceVisibility = { transform: panel.transform, observable: panel.material.observable };
+  }
   const candidates = flattenRenderable(topLevelNodes);
   const groupedNodes = assignUnionGroups(candidates.filter(node => node.renderable));
   const csg = buildCsgExpressions(groupedNodes);
-  const renderNodes = csg.nodes.filter((node) => !node.csgConsumed && !node.csgExpressionId);
+  const renderNodes = csg.nodes.filter((node) => !node.csgConsumed && (!node.csgExpressionId || node.modelCsgOperations));
   const nodes = applyRenderableStateToTree(topLevelNodes, csg.nodes);
 
   return {

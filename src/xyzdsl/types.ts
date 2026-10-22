@@ -110,6 +110,7 @@ export interface XyzDslBoxSurfaceSpec {
 }
 
 export interface SpatialObject {
+  surface?: import('./surfaceAttachment').SurfaceAttachment;
   surfaceDeclarations?: import('./propertyParser').XyzDslPropertyDeclaration[];
   boxSurface?: XyzDslBoxSurfaceSpec | null;
   repeat?: XyzDslRepeatSpec;

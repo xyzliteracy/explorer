@@ -9,6 +9,9 @@ export function objectClipPlanes(object: Object3D): readonly ClipPlane[] {
   return [];
 }
 export function filterClippedHits(object: Object3D, hits: Intersection[], start: number): void {
+  for (let current: Object3D | null = object; current; current = current.parent) {
+    if (!current.visible && current.userData.observableHidden) { hits.splice(start); return; }
+  }
   const planes = objectClipPlanes(object);
   if (!planes.length) return;
   for (let i = hits.length - 1; i >= start; i--) {

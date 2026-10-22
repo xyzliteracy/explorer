@@ -47,6 +47,7 @@ export function parseXyzDslDeclaration(line: string, lineNumber = 1): ParseResul
         namespace: path.namespace,
         box: path.box,
         surfaceDeclarations: properties.surfaceDeclarations,
+        surface: properties.surface,
         repeat: properties.repeat,
         light: properties.light,
         material: properties.material,

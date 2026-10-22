@@ -1,3 +1,6 @@
+import { cutModelInstance } from './modelCsg';
+import { observableFrom } from './observability';
+import { matrixFromTransform } from '../model/transform';
 import { threeClipPlanes } from '../model/clipping';
 import { clippedMeshRaycast, installClippedRaycast } from './clipping';
 import { useFrame } from '@react-three/fiber';
@@ -43,7 +46,7 @@ export function ModelObject({ scene, fit, align, node, targetScale, onPrecisionS
       const mesh = object as Mesh;
       mesh.castShadow = true;
       mesh.receiveShadow = true;
-      if (clippingPlanes.length) installClippedRaycast(mesh);
+      if (clippingPlanes.length || node.surfaceVisibility) installClippedRaycast(mesh);
       if (!clippingPlanes.length && node.material.color === undefined && node.material.metalness === undefined && node.material.roughness === undefined) return;
       const materials = (Array.isArray(mesh.material) ? mesh.material : [mesh.material]).map((sourceMaterial) => {
         const material = sourceMaterial.clone() as Material & { color?: Color; metalness?: number; roughness?: number };
@@ -66,7 +69,7 @@ export function ModelObject({ scene, fit, align, node, targetScale, onPrecisionS
     const bounds = validBounds ? new Box3(new Vector3(...prepared.min as [number, number, number]), new Vector3(...prepared.max as [number, number, number])) : new Box3().setFromObject(clone);
     const oriented = reorientModel(clone, bounds, node.model?.reorientation);
     return { ...oriented, ownedMaterials, ownedSkeletons };
-  }, [scene, node.material.color, node.material.metalness, node.material.roughness, node.clippingPlanes, node.model?.reorientation]);
+  }, [scene, node.material.color, node.material.metalness, node.material.roughness, node.clippingPlanes, node.model?.reorientation, node.surfaceVisibility]);
   useEffect(() => () => { imported.ownedMaterials.forEach(material => material.dispose()); imported.ownedSkeletons.forEach(skeleton => skeleton.dispose()); }, [imported]);
   const fitted = useMemo(
     () => modelFitTransformFromBounds(imported.bounds, fit, align, targetScale),
@@ -76,7 +79,14 @@ export function ModelObject({ scene, fit, align, node, targetScale, onPrecisionS
     onPrecisionScaleChange?.(renderedModelPrecisionScale(imported.bounds, fitted.scale, targetScale));
     return () => onPrecisionScaleChange?.(undefined);
   }, [fitted.scale, imported.bounds, onPrecisionScaleChange, targetScale]);
-  return <group scale={fitted.scale}><group position={fitted.position}><primitive object={imported.scene} dispose={null} /></group></group>;
+  const cut = useMemo(() => {
+    if (!node.modelCsgOperations?.length) return undefined;
+    const result = cutModelInstance(imported.scene, node, fitted);
+    if (node.clippingPlanes?.length || node.surfaceVisibility) result.scene.traverse(object => { if ('isMesh' in object) installClippedRaycast(object as Mesh); });
+    return result;
+  }, [imported.scene, node.modelCsgOperations, node.transform, fitted]);
+  useEffect(() => () => cut?.dispose(), [cut]);
+  return <group scale={fitted.scale}><group position={fitted.position}><primitive object={cut?.scene ?? imported.scene} dispose={null} /></group></group>;
 }
 
 export function StreamingModel({ node, tier, resolved, originalNeeded = false, originalPriority = 1000, onRetainOriginal, onPrecisionScaleChange }: { originalPriority?: number; onRetainOriginal?: () => void; originalNeeded?: boolean; tourOriginal?: boolean; tourMode?: boolean; node: SpatialNode; tier: ModelTier; resolved: boolean; selected: boolean; onPrecisionScaleChange?: (value: number | undefined) => void }) {
@@ -120,6 +130,14 @@ export function ModelPrimitive({ node, onSelect, selectionEnabled = true, onPrec
   const recovery = useModelRetryGeneration();
   const pressure = useModelMemoryPressure();
   const group = useRef<Group>(null);
+  const surfaceInverse = useMemo(() => node.surfaceVisibility ? matrixFromTransform(node.surfaceVisibility.transform).invert() : undefined, [node.surfaceVisibility]);
+  const surfaceCamera = useMemo(() => new Vector3(), []);
+  useFrame(({ camera }) => {
+    if (!group.current || !surfaceInverse) return;
+    const hidden = observableFrom(node.surfaceVisibility?.observable, camera.getWorldPosition(surfaceCamera), surfaceInverse);
+    group.current.visible = !hidden;
+    group.current.userData.observableHidden = hidden;
+  }, -0.5);
   const [originalNeeded, setOriginalNeeded] = useState(false);
   const [retainOriginal, setRetainOriginal] = useState(false);
   const preserveOriginal = useCallback(() => setRetainOriginal(true), []);

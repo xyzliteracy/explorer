@@ -100,7 +100,7 @@ Manual spatial declarations can use `content-text`/`content-url` for simple valu
 
 Primitive dimensions are derived from the bounding box and use the same project-unit scale as paths (`1` = `1 m`, `1d` = `1 dm`, `1c` = `1 cm`, `1m` = `1 mm`). For example, a cone or cylinder uses X/Z as its footprint and Y as its height. Non-square footprints are rendered as scaled elliptical primitives so every primitive fills the declared bounding box. `box-radius` applies only to box geometry and is measured in project units; omitted or zero radius renders a sharp box, and the renderer clamps positive radii to half of the smallest box dimension. `puff` is intentionally a geometry modifier, not a material setting, because it changes the rendered cushion shape.
 
-GLB models can be imported with an absolute HTTP(S) URL or a relative filename. Relative declarations use the default runtime model store at `https://pub-70e24999b560412a8cf712bd468e82c2.r2.dev/`. An explicitly supplied scene asset base takes precedence; absolute URLs keep their own host. Models default to `model-fit: contain` and `model-align: center`; `stretch` and `floor` are also supported. The declared box remains authoritative for layout, selection, collision, and room sizing. For example: `"+1+4/+2+4/+2+4" : "model: https://example.com/modern_chair.glb; model-fit: contain; model-align: floor; rotation: 5,10,5"`. Imported cameras, lights, animations, and model CSG operations are not currently enabled. The model host must allow browser CORS requests.
+GLB models can be imported with an absolute HTTP(S) URL or a relative filename. Relative declarations use the default runtime model store at `https://pub-70e24999b560412a8cf712bd468e82c2.r2.dev/`. An explicitly supplied scene asset base takes precedence; absolute URLs keep their own host. Models default to `model-fit: contain` and `model-align: center`; `stretch` and `floor` are also supported. The declared box remains authoritative for layout, selection, collision, and room sizing. For example: `"+1+4/+2+4/+2+4" : "model: https://example.com/modern_chair.glb; model-fit: contain; model-align: floor; rotation: 5,10,5"`. Imported cameras, lights, and animations are not enabled. Static models can be cut by primitive CSG tools; imported models cannot be CSG tools. The model host must allow browser CORS requests.
 
 ## Automatic model variants
 
@@ -250,3 +250,23 @@ enclosure. Panel materials and observability are retained. Intersection also
 operates per overlapping panel; union adds to one selected panel to avoid
 copying the added solid. See [CSG enclosure rules](SPECIFICATION.md#csg-tools-overlapping-enclosure-panels)
 for a window example and target-selection behavior.
+
+
+## One tiling declaration for all walls
+
+```xyzdsl
+"Sal/+10d+366c/+10d+330c/+10d+391c":"box-surface: 1d white; observable: true;"
+"Sal/Tiling/+0+85c/+0+86c/+0+2c":"surface: walls; model: salouis/tile_triad.glb; reset-axes: 90,0,0; repeat: x; repeat-gap: 1m; repeat-edge: clip;"
+```
+
+`surface: walls` attaches the same component to four interior walls. Coordinates
+are across/up/depth into the room; face rotation and alignment are automatic.
+Use `surface: front,back`, a single face, or `all` for other selections. Repetition
+and clipping work in each face's axes. Attachments follow wall cutaway visibility.
+
+Primitive CSG tools can cut repeated primitives and static GLB tiles. A cut
+selected on an enclosure or its attachments affects overlapping wall panels and
+tiles together. Source assets are not modified. Skinned/instanced/morph meshes
+are excluded, and per-instance processing limits apply. See the
+[surface attachment specification](SPECIFICATION.md#surface-attached-components)
+for coordinate bases, repetition groups, and imported-model CSG limitations.

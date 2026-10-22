@@ -1,3 +1,4 @@
+import { surfaceFrame } from './surfaceAttachment';
 import { SURFACE_DIRECTIONS } from './boxSurfaceParser';
 import { canonicalNamespacePath } from './pathParser';
 import type { ResolvedSpatialObject } from './resolveDocument';
@@ -27,7 +28,37 @@ export function resolveLayout(
   const budgetExceeded = new Error('layout-budget');
   const report = (object: ResolvedSpatialObject, message: string) => diagnostics.push({ line: object.lineNumber, source: object.source, message });
 
-  function visit(object: ResolvedSpatialObject, parent?: ResolvedSpatialObject, originalParent?: ResolvedSpatialObject): void {
+  function visit(object: ResolvedSpatialObject, parent?: ResolvedSpatialObject, originalParent?: ResolvedSpatialObject, attached = false): void {
+    if (object.surface && !attached) {
+      if (object.surface.invalid) return;
+      if (!parent?.boxSurface) {
+        if (![...templates].some(path => object.namespacePath.startsWith(path))) report(object, 'surface requires a nearest concrete box-surface parent.');
+        return;
+      }
+      if (object.content.kind || object.light || object.viewPoint) { report(object, 'surface attachments support primitives and models, not content, lights or viewpoints.'); return; }
+      const near = ['left','bottom','front'] as const, far = ['right','top','back'] as const;
+      const inset = near.map(f => parent.boxSurface!.faces[f]?.thickness ?? 0);
+      const size = SIZES.map((s,i) => parent.box[s] / (parent.anchorScale?.[i] ?? 1) - inset[i] - (parent.boxSurface!.faces[far[i]]?.thickness ?? 0));
+      for (const face of object.surface.faces) {
+        if (!parent.boxSurface.faces[face]) { if (object.surface.explicit) report(object, `surface targets missing ${face} panel; attachment omitted.`); continue; }
+        if (++generated > MAX_LAYOUT_INSTANCES) throw budgetExceeded;
+        const frame = surfaceFrame(face, size, inset);
+        const namespace = [...parent.namespace, `#attach-${object.id}-${face}`];
+        const anchor: ResolvedSpatialObject = {
+          ...object, id: `${parent.id}#attach-${object.id}-${face}`, namespace,
+          namespacePath: canonicalNamespacePath(namespace), parentNamespacePath: parent.namespacePath,
+          box: { source: object.box.source, x: frame.position[0], y: frame.position[1], z: frame.position[2], width: frame.size[0], height: frame.size[1], depth: frame.size[2] },
+          transform: { rotation: frame.rotation as [number,number,number], diagnostics: [] },
+          renderable: false, attachmentFrame: true, attachmentEnclosureId: parent.id, repeatGroupId: `${parent.id}#attachment-group-${object.id}`, attachedPanelId: `${parent.id}#surface-${face}`,
+          surface: undefined, boxSurface: undefined, repeat: undefined, repeatClip: undefined,
+          anchorScale: undefined, referenceDimensions: undefined, model: { fit: 'contain', align: 'center', diagnostics: [] },
+          geometry: { kind: 'box', diagnostics: [] },
+        };
+        result.push(anchor);
+        visit(object, anchor, originalParent, true);
+      }
+      return;
+    }
     const box = { ...object.box };
     const fill = box.fillAxes ?? [];
     const end = box.endAxes ?? [];
@@ -112,7 +143,7 @@ export function resolveLayout(
       : object.namespace;
     for (let x = 0; x < counts[0]; x++) for (let y = 0; y < counts[1]; y++) for (let z = 0; z < counts[2]; z++) {
       const indices: [number, number, number] = [x, y, z];
-      const repeated = repeat !== undefined || parent?.repeatSourceId !== undefined;
+      const repeated = repeat !== undefined || parent?.repeatSourceId !== undefined || Boolean(parent?.attachedPanelId);
       if (repeated && ++generated > MAX_LAYOUT_INSTANCES) {
         throw budgetExceeded;
       }
@@ -126,6 +157,9 @@ export function resolveLayout(
       });
       const instance: ResolvedSpatialObject = {
         ...object, box: instanceBox, anchorScale,
+        attachedPanelId: parent?.attachedPanelId,
+        attachmentEnclosureId: parent?.attachmentEnclosureId,
+        repeatGroupId: parent?.attachmentFrame ? parent.repeatGroupId : repeat ? `${parent?.id ?? ''}#repeat-group-${object.id}` : parent?.repeatGroupId ? `${parent.repeatGroupId}/${object.id}` : undefined,
         ...(repeat?.edge === 'clip' ? {
           repeatClip: repeat.axes.map(axis => ({ axis, extent: extents[AXES.indexOf(axis)], start: inset[AXES.indexOf(axis)] })),
         } : {}),

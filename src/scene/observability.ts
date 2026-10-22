@@ -21,7 +21,8 @@ export const observableRaycast: Mesh['raycast'] = function (this: Mesh, raycaste
 
 export function useObservableMesh(node: SpatialNode) {
   const ref = useRef<Mesh>(null);
-  const inverse = useMemo(() => matrixFromTransform(node.transform).invert(), [node.transform]);
+  const visibilityTransform = node.surfaceVisibility?.transform ?? node.transform;
+  const inverse = useMemo(() => matrixFromTransform(visibilityTransform).invert(), [visibilityTransform]);
   const cameraPosition = useMemo(() => new Vector3(), []);
   const scratch = useMemo(() => new Vector3(), []);
   // Controls run at -1; visibility/occlusion consumers run at 0.
@@ -29,7 +30,7 @@ export function useObservableMesh(node: SpatialNode) {
     const mesh = ref.current;
     if (!mesh) return;
     camera.getWorldPosition(cameraPosition);
-    const hidden = observableFrom(node.material.observable, cameraPosition, inverse, scratch);
+    const hidden = observableFrom(node.surfaceVisibility ? node.surfaceVisibility.observable : node.material.observable, cameraPosition, inverse, scratch);
     mesh.visible = !hidden;
     mesh.userData.observableHidden = hidden;
     mesh.raycast = observableRaycast;

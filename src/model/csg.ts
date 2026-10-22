@@ -47,7 +47,6 @@ export function buildCsgExpressions(nodes: SpatialNode[]): { expressions: CsgExp
 
     const earlierOverlapping = ordered
       .filter((candidate) => sourceOrder(candidate) < sourceOrder(tool))
-      .filter((candidate) => !candidate.model)
       .filter((candidate) => boundsOverlap(candidate.bounds, tool.bounds));
     const scopedCandidate = earlierOverlapping
       .filter((candidate) => scopePath(candidate) === scopePath(tool))
@@ -63,8 +62,12 @@ export function buildCsgExpressions(nodes: SpatialNode[]): { expressions: CsgExp
     const operation = { op: tool.geometry.operation, tool };
     // An enclosure is one authored target with independently visible/materialized panels.
     // Union keeps one base so the added tool solid is not duplicated across panels.
-    const targets = base.metadata?.surfaceSourceId && tool.geometry.operation !== 'union'
-      ? ordered.filter(panel => panel.metadata?.surfaceSourceId === base.metadata!.surfaceSourceId
+    const enclosureId = base.metadata?.surfaceSourceId ?? base.metadata?.attachmentEnclosureId;
+    const targets = tool.geometry.operation !== 'union' && (enclosureId || base.metadata?.repeatGroupId)
+      ? ordered.filter(panel => !isCsgTool(panel)
+        && (enclosureId
+          ? (panel.metadata?.surfaceSourceId ?? panel.metadata?.attachmentEnclosureId) === enclosureId
+          : panel.metadata?.repeatGroupId === base.metadata?.repeatGroupId)
         && sourceOrder(panel) < sourceOrder(tool) && boundsOverlap(panel.bounds, tool.bounds))
       : [base];
     for (const target of targets) {
@@ -83,6 +86,7 @@ export function buildCsgExpressions(nodes: SpatialNode[]): { expressions: CsgExp
   const expressions: CsgExpression[] = [...operationsByBase.entries()].map(([baseId, operations], index) => {
     const expressionId = `csg-${index + 1}`;
     const base = byId.get(baseId)!;
+    if (base.model) base.modelCsgOperations = operations;
     base.csgExpressionId = expressionId;
     operations.forEach(({ tool }) => {
       const storedTool = byId.get(tool.id);
@@ -99,5 +103,5 @@ export function buildCsgExpressions(nodes: SpatialNode[]): { expressions: CsgExp
     };
   });
 
-  return { expressions, nodes: nodes.map((node) => byId.get(node.id) ?? node) };
+  return { expressions: expressions.filter(expression => !expression.base.model), nodes: nodes.map((node) => byId.get(node.id) ?? node) };
 }
