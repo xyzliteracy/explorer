@@ -23,6 +23,20 @@ export function cutModelInstance(scene: Object3D, node: SpatialNode, fitted: Mod
       const matrix = placement.clone().multiply(mesh.matrixWorld);
       const inverse = matrix.clone().invert();
       const geometry = mesh.geometry.clone(); owned.add(geometry);
+      // Quantized GLBs store normalized integers (often interleaved). World
+      // coordinates overflow those buffers, and CSG interpolates raw arrays.
+      // Decode on this instance-owned copy before transforming or evaluating.
+      for (const name of ['position', 'normal', 'uv', 'uv1', 'color', 'tangent']) {
+        const attribute = geometry.getAttribute(name);
+        if (!attribute || (attribute.array instanceof Float32Array && !attribute.normalized && !('isInterleavedBufferAttribute' in attribute))) continue;
+        const values = new Float32Array(attribute.count * attribute.itemSize);
+        for (let i = 0; i < attribute.count; i++) {
+          for (let component = 0; component < attribute.itemSize; component++) {
+            values[i * attribute.itemSize + component] = attribute.getComponent(i, component);
+          }
+        }
+        geometry.setAttribute(name, new Float32BufferAttribute(values, attribute.itemSize));
+      }
       geometry.applyMatrix4(matrix);
       if (!geometry.attributes.normal) geometry.computeVertexNormals();
       // Untextured GLB primitives may legitimately omit UVs; supply neutral cutter attributes.

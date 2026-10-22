@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BoxGeometry, Group, Mesh, MeshBasicMaterial, Raycaster, Vector3, DoubleSide, Float32BufferAttribute } from 'three';
+import { BoxGeometry, Group, Mesh, MeshBasicMaterial, Raycaster, Vector3, DoubleSide, Float32BufferAttribute, Int16BufferAttribute, InterleavedBuffer, InterleavedBufferAttribute } from 'three';
 import { createSpatialDocument } from '../model/createSpatialDocument';
 import { cutModelInstance } from './modelCsg';
 import { matrixFromTransform } from '../model/transform';
@@ -7,6 +7,40 @@ import { installClippedRaycast } from './clipping';
 import { sweptSphereIntersectsScene } from './povCollision';
 
 describe('repeated model CSG', () => {
+ it.each([false, true])('preserves quantized repeated tiles outside the cut (interleaved=%s)', interleaved => {
+  const doc = createSpatialDocument('"Row/+2+2/+0+1/+3+1":""\n"Row/Tile/+0+1/+0+1/+0+1":"model: tile.glb; repeat: x"\n"Cut/+19d+22d/+4d+2d/+29d+12d":"operation: subtraction"');
+  const geometry = new BoxGeometry();
+  for (const name of ['position', 'normal', 'uv']) {
+   const source = geometry.getAttribute(name);
+   const packed = new Int16BufferAttribute(Array.from(source.array, v => Math.round(v * 32767)), source.itemSize, true);
+   if (interleaved) {
+    const stride = source.itemSize + 1;
+    const values = new Int16Array(source.count * stride).fill(123);
+    for (let i = 0; i < source.count; i++) for (let c = 0; c < source.itemSize; c++) values[i * stride + c + 1] = packed.array[i * source.itemSize + c];
+    geometry.setAttribute(name, new InterleavedBufferAttribute(new InterleavedBuffer(values, stride), source.itemSize, 1, true));
+   } else geometry.setAttribute(name, packed);
+  }
+  const original = geometry.attributes.position.array.slice();
+  const asset = new Group(); const material = new MeshBasicMaterial({side:DoubleSide}); asset.add(new Mesh(geometry,material));
+  for (const node of doc.renderNodes.filter(n => n.model)) {
+   const cut = cutModelInstance(asset,node,{position:[0,0,0],scale:[1,1,1]});
+   cut.scene.applyMatrix4(matrixFromTransform(node.transform)); cut.scene.updateMatrixWorld(true);
+   const x = node.bounds.minX + .5;
+   expect(new Raycaster(new Vector3(x,.2,5),new Vector3(0,0,-1)).intersectObject(cut.scene,true).length).toBeGreaterThan(0);
+   expect(new Raycaster(new Vector3(x,.5,5),new Vector3(0,0,-1)).intersectObject(cut.scene,true)).toHaveLength(0);
+   const mesh = cut.scene.children[0] as Mesh;
+   expect(mesh.geometry.attributes.position.array).toBeInstanceOf(Float32Array);
+   expect(mesh.geometry.attributes.uv.normalized).toBe(false);
+   expect(mesh.geometry.attributes.normal.normalized).toBe(false);
+   const uv = mesh.geometry.attributes.uv;
+   expect(Math.min(...uv.array)).toBeGreaterThanOrEqual(0);
+   expect(Math.max(...uv.array)).toBeLessThanOrEqual(1);
+   cut.dispose();
+  }
+  expect(geometry.attributes.position.array).toEqual(original);
+  geometry.dispose(); material.dispose();
+ });
+
  it('cuts all overlapping repeated models, without modifying the shared asset', () => {
   const doc = createSpatialDocument('"Row/+0+3/+0+1/+0+1":""\n"Row/Tile/+0+1/+0+1/+0+1":"model: tile.glb; repeat: x"\n"Cut/+0+3/+4d+2d/+0+1":"operation: subtraction"');
   expect(doc.diagnostics).toEqual([]);

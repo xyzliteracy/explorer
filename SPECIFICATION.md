@@ -615,7 +615,10 @@ preferences still determine the initial target. Intersection is per overlapping
 piece, not intersection of the entire room or repetition set.
 
 GLB processing happens on instance-owned static meshes after orientation and
-fitting, before display. Shared source buffers remain unchanged. Existing UVs,
+fitting, before display. Quantized and interleaved vertex attributes are decoded
+to floating-point values on the instance copy before world-space transforms
+and boolean evaluation. This prevents compressed asset tiers from losing
+tiles outside the cut. Shared source buffers remain unchanged. Existing UVs,
 vertex colors, tangents, and material groups are retained; newly cut faces use the affected mesh's first
 material and the primitive tool's UVs. Untextured parts without UV attributes
 receive neutral coordinates. Cuts preserve the original target box and fitting
