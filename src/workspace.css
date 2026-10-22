@@ -40,6 +40,8 @@ button {
 
 .scene-viewport {
   position: relative;
+  /* Keep scene loading/recovery overlays below the surrounding app UI. */
+  isolation: isolate;
 }
 
 .camera-controls {
@@ -1641,4 +1643,4 @@ button {
 }
 
 /* DOM sibling of Canvas: remains usable during GPU loss and model failures. */
-.scene-preparation { position: absolute; inset: 0; z-index: 20; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px; background: #151820; color: #f3f4f6; text-align: center; }
+.scene-preparation { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px; background: #151820; color: #f3f4f6; text-align: center; }
