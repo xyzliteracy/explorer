@@ -204,8 +204,8 @@ inherit the shell rule. References retain it; `box-surface: none` cancels it.
 Thickness uses existing path units and must be less than half every local box
 dimension. Generated panels support transforms, materials, repetition, collision,
 and shadows. Selecting a panel selects the enclosure's source declaration.
-CSG cuts and model/content/light combinations are not supported in this first
-version. See the [box-surface specification](SPECIFICATION.md#box-surfaces) for
+Primitive CSG tools can cut overlapping panels; model/content/light combinations
+on the enclosure declaration remain unsupported. See the [box-surface specification](SPECIFICATION.md#box-surfaces) for
 scaling, validation, and generation limits.
 
 ### Individual panels and cutaway views
@@ -241,3 +241,12 @@ Fill, far-edge alignment, and repetition use the clear interior dimensions.
 Omitted panels have zero thickness. Existing offsets that manually included
 wall thickness should remove that allowance. See the
 [interior coordinate rules](SPECIFICATION.md#interior-coordinates-for-enclosure-children).
+
+### Cutting openings in enclosure panels
+
+Place a primitive `operation: subtraction` tool after the enclosure and across
+its wall thickness. A corner tool cuts all overlapping panels of the selected
+enclosure. Panel materials and observability are retained. Intersection also
+operates per overlapping panel; union adds to one selected panel to avoid
+copying the added solid. See [CSG enclosure rules](SPECIFICATION.md#csg-tools-overlapping-enclosure-panels)
+for a window example and target-selection behavior.

@@ -425,9 +425,7 @@ Malformed thickness, invalid resolved dimensions, and unsupported combinations
 produce diagnostics and omit the affected concrete subtree. Version one supports
 plain boxes, ordinary children, materials, transforms, references, and repetition.
 A surface declaration cannot also be an imported model, content card, light,
-viewpoint, non-box/deformed primitive, or CSG operation. CSG tools whose
-conservative world bounds overlap a generated panel are omitted with a diagnostic;
-cutting doors or windows into these enclosures is not yet supported. Existing
+viewpoint, non-box/deformed primitive, or CSG operation. Primitive CSG tools can cut generated panels as described below. Existing
 explicit panel declarations retain their behavior.
 
 Panels use the existing primitive rendering, shadow, observability, picking,
@@ -522,3 +520,31 @@ removes a panel. `box-surface: none` restores ordinary container coordinates.
 This changes earlier enclosure child layout: existing authored child offsets
 that already included wall thickness should remove that manual allowance.
 Resolved child boxes include the inset; source paths retain authored offsets.
+
+### CSG tools overlapping enclosure panels
+
+Declare a primitive tool after the enclosure using the existing `operation`
+property. Target selection retains the existing rule: nearest earlier overlapping
+primitive, preferring the same namespace scope. If the selected target is an
+enclosure panel, subtraction and intersection apply independently to every
+panel of that same enclosure instance whose world bounds overlap the tool.
+Other enclosures and non-overlapping panels remain unchanged. Intersection is
+therefore a per-panel operation, not intersection of the entire shell.
+
+```xyzdsl
+"Room/+1+4/+1+4/+1+4":"box-surface: 1d white; observable: true"
+"Window/+9d+3d/+2+1/+2+1":"operation: subtraction"
+```
+
+The tool spans X=0.9–1.2 metres, cutting through the left panel at X=1–1.1.
+This example uses a world-space sibling tool because child coordinates begin
+at the room's interior surface. A tool must cross the panel thickness to make
+a through-opening; merely touching its inside boundary is insufficient.
+
+Corner cuts can affect multiple panels. Each result retains its panel material,
+observability, selection owner, and existing CSG rendering/collision behavior.
+Tools are consumed once, and successive operations retain source order.
+Union retains a single selected panel as its base so the added solid is emitted
+only once. Imported-model CSG remains unsupported; the enclosure declaration
+itself still cannot carry an `operation`. Omitted panels cannot be CSG targets.
+Clipped primitives continue to use the existing operand clipping rules.

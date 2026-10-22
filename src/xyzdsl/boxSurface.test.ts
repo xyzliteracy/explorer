@@ -83,11 +83,11 @@ describe('box-surface', () => {
     expect(doc.renderNodes).toHaveLength(0);
     expect(doc.diagnostics.some(d => d.message.includes('budget'))).toBe(true);
   });
-  it('omits CSG tools intersecting panels with a diagnostic', () => {
+  it('cuts every intersecting panel of the selected enclosure', () => {
     const doc = createSpatialDocument(`${room}\n"Cut/+1+1/+1+1/+1+1":"operation: subtraction"`);
-    expect(doc.diagnostics.some(d => d.message.includes('CSG'))).toBe(true);
-    expect(doc.renderNodes).toHaveLength(6);
-    expect(doc.csgExpressions).toHaveLength(0);
+    expect(doc.diagnostics).toEqual([]);
+    expect(doc.renderNodes).toHaveLength(3);
+    expect(doc.csgExpressions).toHaveLength(3);
   });
   it('keeps subtree surfaces when copying a compound template', () => {
     const doc = createSpatialDocument('"Template":""\n"Template/Room/+0+2/+0+2/+0+2":"box-surface: 1d white"\n"Copy/+0+4/+0+4/+0+4":"ref: Template; ref-scale: true"');

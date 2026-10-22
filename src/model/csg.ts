@@ -61,8 +61,16 @@ export function buildCsgExpressions(nodes: SpatialNode[]): { expressions: CsgExp
     }
 
     const operation = { op: tool.geometry.operation, tool };
-    operationsByBase.set(base.id, [...(operationsByBase.get(base.id) ?? []), operation]);
-    scopeByBase.set(base.id, scopePath(base));
+    // An enclosure is one authored target with independently visible/materialized panels.
+    // Union keeps one base so the added tool solid is not duplicated across panels.
+    const targets = base.metadata?.surfaceSourceId && tool.geometry.operation !== 'union'
+      ? ordered.filter(panel => panel.metadata?.surfaceSourceId === base.metadata!.surfaceSourceId
+        && sourceOrder(panel) < sourceOrder(tool) && boundsOverlap(panel.bounds, tool.bounds))
+      : [base];
+    for (const target of targets) {
+      operationsByBase.set(target.id, [...(operationsByBase.get(target.id) ?? []), operation]);
+      scopeByBase.set(target.id, scopePath(target));
+    }
     baseByTool.set(tool.id, base.id);
 
     const storedTool = byId.get(tool.id);
@@ -79,7 +87,7 @@ export function buildCsgExpressions(nodes: SpatialNode[]): { expressions: CsgExp
     operations.forEach(({ tool }) => {
       const storedTool = byId.get(tool.id);
       if (storedTool) {
-        storedTool.csgExpressionId = expressionId;
+        if (baseByTool.get(tool.id) === baseId) storedTool.csgExpressionId = expressionId;
       }
     });
 
