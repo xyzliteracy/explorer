@@ -394,9 +394,8 @@ The room above has a 3.46 × 3.10 × 3.71 metre clear interior. Layout requires
 that the sum of opposing panel thicknesses is smaller than the corresponding
 local dimension (`2t < min(W, H, D)` for uniform panels). Missing panels have
 zero thickness; zero-width interiors are rejected. The parent is a
-non-rendering container, so no solid box fills the interior. Authored children
-keep the usual parent-local origin and dimensions; walls do not inset or resize
-child layout automatically.
+non-rendering container, so no solid box fills the interior. Authored children use the enclosure's interior coordinate system, described
+below; generated panels remain anchored to the outside dimensions.
 
 This is a local structural property, not an inherited namespace style. Ordinary
 children do not acquire it. References retain the target's surface rule,
@@ -492,3 +491,34 @@ properties and multi-value observability require an enabled enclosure, including
 one obtained through a reference. Unsupported combinations or malformed values
 produce diagnostics and omit the affected concrete subtree. Observability on an
 omitted face has no rendering effect.
+
+### Interior coordinates for enclosure children
+
+Children of a `box-surface` enclosure start at its interior corner. Local
+`+0` on X, Y, and Z lies on the inside of the left, bottom, and front panels,
+respectively. Missing panels contribute zero inset. The available child-layout
+extent is the outer local size minus the two opposing panel thicknesses.
+
+```xyzdsl
+"Sal/+10d+366c/+10d+330c/+10d+391c":"box-surface: 1d white;"
+"Sal/Bed/+0+155c/+0+8d/+0+205c":"model: salouis/wooden_bed.glb"
+```
+
+Here the bed's target box starts at world (1.1, 1.1, 1.1) metres and retains
+its 1.55 × 0.80 × 2.05 metre dimensions. Model fitting and alignment still use
+that target box. `++` fills the 3.46 × 3.10 × 3.71 metre interior;
+`++size` aligns to the corresponding inside far wall. Explicit offsets are
+measured from the interior origin. Fixed dimensions are not automatically
+clamped or resized to fit inside the room.
+
+Repetition counts and `repeat-edge: clip` use interior boundaries. The inset
+is applied before world rotation and reference scaling, exactly once per concrete
+enclosure ancestor, including through namespace-only groups. Nested enclosures
+introduce their own interior coordinate frames. Ordinary intermediate containers
+keep their usual coordinate rules. Generated panels stay in the exterior frame,
+and hiding a panel with `observable` does not remove its inset; only `none`
+removes a panel. `box-surface: none` restores ordinary container coordinates.
+
+This changes earlier enclosure child layout: existing authored child offsets
+that already included wall thickness should remove that manual allowance.
+Resolved child boxes include the inset; source paths retain authored offsets.

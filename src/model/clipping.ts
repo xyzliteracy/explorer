@@ -15,10 +15,10 @@ export function insideClipPlanes(point: Vector3, planes: readonly ClipPlane[]): 
 }
 
 /** Parent axes, transformed into world space independently of the repeated child rotation. */
-export function repeatClipPlanes(axes: { axis: AxisName; extent: number }[], parentMatrix: Matrix4): ClipPlane[] {
-  return axes.flatMap(({ axis, extent }) => {
+export function repeatClipPlanes(axes: { axis: AxisName; extent: number; start?: number }[], parentMatrix: Matrix4): ClipPlane[] {
+  return axes.flatMap(({ axis, extent, start = 0 }) => {
     const normal = new Vector3(); normal[axis] = 1;
-    return [new Plane(normal, 0), new Plane(normal.clone().negate(), extent)]
+    return [new Plane(normal, -start), new Plane(normal.clone().negate(), start + extent)]
       .map(p => p.applyMatrix4(parentMatrix))
       .map(p => ({ normal: p.normal.toArray() as [number, number, number], constant: p.constant }));
   });

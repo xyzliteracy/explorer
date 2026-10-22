@@ -28,7 +28,7 @@ export interface ResolvedSpatialObject extends SpatialObject {
   materializedFrom?: string;
   anchorScale?: [number, number, number];
   referenceDimensions?: [number, number, number];
-  repeatClip?: { axis: import('./types').AxisName; extent: number }[];
+  repeatClip?: { axis: import('./types').AxisName; extent: number; start?: number }[];
   repeatSourceId?: string;
   repeatIndices?: [number, number, number];
 }

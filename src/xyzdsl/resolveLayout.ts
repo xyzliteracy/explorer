@@ -44,7 +44,13 @@ export function resolveLayout(
       report(object, 'An axis cannot both fill its parent and repeat.');
       return;
     }
-    const extents = SIZES.map((size, index) => parent ? parent.box[size] / (parent.anchorScale?.[index] ?? 1) : 0);
+    // Authored children use the interior origin; generated panels remain in the outer frame.
+    const nearFaces = ['left', 'bottom', 'front'] as const;
+    const farFaces = ['right', 'top', 'back'] as const;
+    const inset = nearFaces.map(face => parent?.boxSurface?.faces[face]?.thickness ?? 0);
+    const extents = SIZES.map((size, index) => parent
+      ? parent.box[size] / (parent.anchorScale?.[index] ?? 1) - inset[index] - (parent.boxSurface?.faces[farFaces[index]]?.thickness ?? 0)
+      : 0);
     for (const axis of end) {
       const index = AXES.indexOf(axis);
       const extent = extents[index];
@@ -115,12 +121,13 @@ export function resolveLayout(
       if (repeat) instanceNamespace[instanceNamespace.length - 1] += `#repeat${indices.join(',')}`;
       const instanceBox = { ...box };
       AXES.forEach((axis: AxisName, index) => {
+        instanceBox[axis] += inset[index];
         if (repeat?.axes.includes(axis)) instanceBox[axis] += indices[index] * (box[SIZES[index]] + repeat.gap);
       });
       const instance: ResolvedSpatialObject = {
         ...object, box: instanceBox, anchorScale,
         ...(repeat?.edge === 'clip' ? {
-          repeatClip: repeat.axes.map(axis => ({ axis, extent: extents[AXES.indexOf(axis)] })),
+          repeatClip: repeat.axes.map(axis => ({ axis, extent: extents[AXES.indexOf(axis)], start: inset[AXES.indexOf(axis)] })),
         } : {}),
         namespace: instanceNamespace,
         namespacePath: canonicalNamespacePath(instanceNamespace),

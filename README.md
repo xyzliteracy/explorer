@@ -199,7 +199,7 @@ Create six inward-extending boundary panels with one declaration:
 
 This gives the room 10 cm thick white walls, a ceiling, and a floor, within its
 3.66 × 3.30 × 3.91 metre outer box. The clear interior is
-3.46 × 3.10 × 3.71 metres. Children keep normal local coordinates and do not
+3.46 × 3.10 × 3.71 metres. Children start at the interior wall surfaces and do not
 inherit the shell rule. References retain it; `box-surface: none` cancels it.
 Thickness uses existing path units and must be less than half every local box
 dimension. Generated panels support transforms, materials, repetition, collision,
@@ -226,3 +226,18 @@ floor visible. These enclosure settings do not affect ordinary children.
 Explicit `observable: +y` still applies +Y separately to every panel; use the
 face-specific form to target only the ceiling. Ordinary boxes retain their
 existing visibility behavior. See [per-face rules](SPECIFICATION.md#per-face-surface-and-observability-properties).
+
+### Placing furniture inside an enclosure
+
+Child offsets start at the inside corner (left wall, floor, front wall):
+
+```xyzdsl
+"Sal/+10d+366c/+10d+330c/+10d+391c":"box-surface: 1d white;"
+"Sal/Bed/+0+155c/+0+8d/+0+205c":"model: salouis/wooden_bed.glb"
+```
+
+The bed's target box starts 10 cm inside each near boundary; its size is unchanged.
+Fill, far-edge alignment, and repetition use the clear interior dimensions.
+Omitted panels have zero thickness. Existing offsets that manually included
+wall thickness should remove that allowance. See the
+[interior coordinate rules](SPECIFICATION.md#interior-coordinates-for-enclosure-children).
