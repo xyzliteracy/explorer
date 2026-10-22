@@ -101,13 +101,16 @@ export interface XyzDslRepeatSpec {
   invalid?: boolean;
 }
 
+export type SurfaceFace = 'top' | 'right' | 'bottom' | 'left' | 'front' | 'back';
+export interface SurfacePanelSpec { thickness: number; color: string | number }
 export interface XyzDslBoxSurfaceSpec {
-  thickness: number;
-  color: string | number;
+  faces: Record<SurfaceFace, SurfacePanelSpec | null>;
+  observable: Partial<Record<SurfaceFace, XyzDslObservable | true>>;
   invalid?: boolean;
 }
 
 export interface SpatialObject {
+  surfaceDeclarations?: import('./propertyParser').XyzDslPropertyDeclaration[];
   boxSurface?: XyzDslBoxSurfaceSpec | null;
   repeat?: XyzDslRepeatSpec;
   light?: XyzDslLightSpec;

@@ -64,7 +64,7 @@ describe('box-surface', () => {
   it('scales reference panels and thickness exactly once', () => {
     const doc = createSpatialDocument('"Template/+0+2/+0+2/+0+2":"box-surface: 1d white"\n"Copy/+3+4/+0+6/+0+8":"ref: Template; ref-scale: true"');
     expect(doc.diagnostics).toEqual([]);
-    const floor = doc.renderNodes.find(n => n.namespacePath?.startsWith('Copy/') && n.metadata?.surfaceFace === 'floor')!;
+    const floor = doc.renderNodes.find(n => n.namespacePath?.startsWith('Copy/') && n.metadata?.surfaceFace === 'bottom')!;
     expect(floor.bounds.maxX - floor.bounds.minX).toBeCloseTo(4);
     expect(floor.bounds.maxY - floor.bounds.minY).toBeCloseTo(.3);
     expect(floor.bounds.maxZ - floor.bounds.minZ).toBeCloseTo(8);
@@ -93,7 +93,7 @@ describe('box-surface', () => {
     const doc = createSpatialDocument('"Template":""\n"Template/Room/+0+2/+0+2/+0+2":"box-surface: 1d white"\n"Copy/+0+4/+0+4/+0+4":"ref: Template; ref-scale: true"');
     expect(doc.diagnostics).toEqual([]);
     expect(doc.renderNodes).toHaveLength(6);
-    expect(doc.renderNodes.find(n => n.metadata?.surfaceFace === 'floor')!.bounds.maxY).toBeCloseTo(.2);
+    expect(doc.renderNodes.find(n => n.metadata?.surfaceFace === 'bottom')!.bounds.maxY).toBeCloseTo(.2);
   });
   it('resolves chained references and local overrides', () => {
     const doc = createSpatialDocument(`${room}\n"Copy/+0+4/+0+4/+0+4":"ref: Room"\n"Third/+0+4/+0+4/+0+4":"ref: Copy; box-surface: 2d blue"`);

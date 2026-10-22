@@ -1,4 +1,4 @@
-import { parseBoxSurfaceDeclaration } from './boxSurfaceParser';
+import { SURFACE_PROPERTIES } from './boxSurfaceParser';
 import { parseRepeatDeclaration } from './repeatParser';
 import { parseContentDeclaration } from './contentParser';
 import { parseGeometryDeclaration } from './geometryParser';
@@ -17,6 +17,7 @@ import type {
 
 const SUPPORTED_OBJECT_PROPERTIES = new Set([
   ...SUPPORTED_MATERIAL_KEYS,
+  ...SURFACE_PROPERTIES,
   'box-surface',
   'view-point',
   'light-source',
@@ -48,6 +49,7 @@ const SUPPORTED_OBJECT_PROPERTIES = new Set([
 ]);
 
 export interface XyzDslObjectPropertiesSpec {
+  surfaceDeclarations?: import('./propertyParser').XyzDslPropertyDeclaration[];
   boxSurface?: import('./types').XyzDslBoxSurfaceSpec | null;
   repeat?: import('./types').XyzDslRepeatSpec;
   light?: import('./types').XyzDslLightSpec;
@@ -64,7 +66,7 @@ export interface XyzDslObjectPropertiesSpec {
 export function parseObjectProperties(source: string): XyzDslObjectPropertiesSpec {
   const { declarations, diagnostics } = parsePropertyDeclarations(source);
   const repeat = parseRepeatDeclaration(declarations, diagnostics);
-  const material = parseMaterialDeclaration(declarations);
+  const material = parseMaterialDeclaration(declarations.filter(d => d.property !== 'observable' || !d.value.includes(',')));
   const geometry = parseGeometryDeclaration(declarations);
   const transform = parseTransformDeclaration(declarations);
   const reference = parseReferenceDeclaration(declarations);
@@ -97,7 +99,7 @@ export function parseObjectProperties(source: string): XyzDslObjectPropertiesSpe
   if (!enabled && declarations.some(d => d.property.startsWith('light-') && d.property !== 'light-source')) diagnostics.push('Light options require light-source: true or point.');
 
   return {
-    boxSurface: parseBoxSurfaceDeclaration(declarations, diagnostics),
+    surfaceDeclarations: declarations.filter(d => d.property === 'box-surface' || d.property === 'observable' || SURFACE_PROPERTIES.includes(d.property)),
     repeat,
     light: enabled ? { intensity, distance, color: lightMaterial.color ?? '#ffffff' } : undefined,
     viewPoint: marker?.value === 'true',

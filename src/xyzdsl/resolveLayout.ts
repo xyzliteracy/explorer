@@ -1,3 +1,4 @@
+import { SURFACE_DIRECTIONS } from './boxSurfaceParser';
 import { canonicalNamespacePath } from './pathParser';
 import type { ResolvedSpatialObject } from './resolveDocument';
 import type { AxisName, ParseDiagnostic } from './types';
@@ -79,8 +80,8 @@ export function resolveLayout(
       report(object, 'box-surface supports plain boxes only; model, content, light, view-point, CSG and deformed geometry combinations are unsupported.');
       return;
     }
-    if (surface && localSizes.some(size => !Number.isFinite(size) || 2 * surface.thickness >= size)) {
-      report(object, 'box-surface requires twice its thickness to be smaller than every resolved local box dimension.');
+    if (surface && localSizes.some((size, index) => !Number.isFinite(size) || (surface.faces[(['left', 'bottom', 'front'] as const)[index]]?.thickness ?? 0) + (surface.faces[(['right', 'top', 'back'] as const)[index]]?.thickness ?? 0) >= size)) {
+      report(object, 'box-surface requires opposing panel thickness sums to be smaller than every resolved local box dimension.');
       return;
     }
     const counts = AXES.map((axis, index) => {
@@ -131,14 +132,15 @@ export function resolveLayout(
       result.push(instance);
       if (surface && object.layoutEligible) {
         const [width, height, depth] = localSizes;
-        const t = surface.thickness;
+        const thickness = (face: import('./types').SurfaceFace) => surface.faces[face]?.thickness ?? 0;
+        const top = thickness('top'), bottom = thickness('bottom'), front = thickness('front'), back = thickness('back'), left = thickness('left'), right = thickness('right');
         const panels = [
-          ['ceiling', 0, height - t, 0, width, t, depth],
-          ['floor', 0, 0, 0, width, t, depth],
-          ['front', 0, 0, 0, width, height, t],
-          ['back', 0, 0, depth - t, width, height, t],
-          ['left', 0, 0, 0, t, height, depth],
-          ['right', width - t, 0, 0, t, height, depth],
+          ['top', 0, height - top, 0, width, top, depth],
+          ['bottom', 0, 0, 0, width, bottom, depth],
+          ['front', 0, 0, 0, width, height, front],
+          ['back', 0, 0, depth - back, width, height, back],
+          ['left', 0, 0, 0, left, height, depth],
+          ['right', width - right, 0, 0, right, height, depth],
         ] as const;
         // Anonymous surfaces need an internal anchor namespace for parenting.
         if (!instance.namespace.length) {
@@ -146,6 +148,9 @@ export function resolveLayout(
           instance.namespacePath = canonicalNamespacePath(instance.namespace);
         }
         for (const [face, px, py, pz, pw, ph, pd] of panels) {
+          const panel = surface.faces[face];
+          if (!panel) continue;
+          const visibility = surface.observable[face] ?? instance.material.observable;
           if (++generated > MAX_LAYOUT_INSTANCES) throw budgetExceeded;
           const panelNamespace = [...instance.namespace, `#surface-${face}`];
           result.push({
@@ -155,7 +160,7 @@ export function resolveLayout(
             namespacePath: canonicalNamespacePath(panelNamespace),
             parentNamespacePath: instance.namespacePath,
             box: { source: object.box.source, x: px, y: py, z: pz, width: pw, height: ph, depth: pd },
-            material: { ...instance.material, color: surface.color },
+            material: { ...instance.material, color: panel.color, observable: visibility === true ? SURFACE_DIRECTIONS[face] : visibility },
             geometry: { kind: 'box', diagnostics: [] },
             transform: { rotation: [0, 0, 0], diagnostics: [] },
             reference: { diagnostics: [] },

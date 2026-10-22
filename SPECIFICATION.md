@@ -369,7 +369,8 @@ alignment offset together; use it for scene placement after reorientation.
 "Room/+10d+366c/+10d+330c/+10d+391c":"box-surface: 1d white;"
 ```
 
-The syntax is `box-surface: <thickness> <color>`, or `box-surface: none`.
+The simplest syntax is `box-surface: <thickness> <color>`, or `box-surface: none`.
+Face shorthands and overrides are specified below.
 Thickness uses the existing path-length grammar: unpadded integer digits with
 an optional `d`, `c`, or `m` suffix, or metres without a suffix. It must be
 finite and strictly positive. The remaining value uses the existing `color`
@@ -390,7 +391,9 @@ width W, height H, depth D, and thickness t, panels have these local boxes:
 
 Panels overlap at corners, matching six explicit filled-axis box declarations.
 The room above has a 3.46 × 3.10 × 3.71 metre clear interior. Layout requires
-`2t < min(W, H, D)`; zero-width interiors are rejected. The parent is a
+that the sum of opposing panel thicknesses is smaller than the corresponding
+local dimension (`2t < min(W, H, D)` for uniform panels). Missing panels have
+zero thickness; zero-width interiors are rejected. The parent is a
 non-rendering container, so no solid box fills the interior. Authored children
 keep the usual parent-local origin and dimensions; walls do not inset or resize
 child layout automatically.
@@ -400,7 +403,8 @@ children do not acquire it. References retain the target's surface rule,
 including rules on copied descendants; a local value overrides the copied rule.
 Namespace-only declarations cannot enable it. The shorthand color overrides
 panel color only; it does not change authored children's material defaults.
-Other material settings come from the container's resolved material.
+Other material settings come from the container's resolved material. Enclosure
+observability is local to its panels, as specified below.
 
 Panels are generated after parent-relative sizing, in the container's local
 coordinates, before world transforms. Rotations apply once through the parent.
@@ -414,7 +418,7 @@ Generated faces use deterministic internal identities that cannot collide with
 source namespace names such as `Room/Floor`. Their metadata exposes
 `surfaceSourceId` and `surfaceFace`; source text and line number identify the
 authored enclosure. Selecting a face targets its enclosure, and edits change the
-single source declaration. Six generated nodes per enclosure count against the
+single source declaration. Each generated panel counts against the
 shared 10,000 generated-node document budget, including repeated enclosures.
 Exceeding that budget omits the containing root subtree atomically.
 
@@ -429,3 +433,62 @@ explicit panel declarations retain their behavior.
 
 Panels use the existing primitive rendering, shadow, observability, picking,
 and collision paths. No renderer-specific shell primitive or new asset is needed.
+
+### Per-face surface and observability properties
+
+Face names and six-value order are **top, right, bottom, left, front, back**.
+Top is +Y (ceiling), right +X, bottom −Y (floor), left −X, front −Z,
+and back +Z, in the enclosure's local axes.
+
+Both `box-surface` and enclosure `observable` accept comma-separated values:
+
+| Count | Expansion |
+| --- | --- |
+| 1 | All six faces |
+| 2 | Top/bottom; right/left/front/back |
+| 3 | Top/bottom; right/left; front/back |
+| 6 | Top, right, bottom, left, front, back |
+
+Other counts and empty values are invalid. Commas inside color functions such
+as `rgb(255, 0, 0)` are not separators. Every surface value is a positive path
+length followed by a color, or `none`. Use `box-surface-top`,
+`box-surface-right`, `box-surface-bottom`, `box-surface-left`,
+`box-surface-front`, or `box-surface-back` to override one panel. Each longhand
+accepts exactly one value. `none` on a face omits that panel; a single
+`box-surface: none` disables the enclosure. An enabled enclosure with all faces
+omitted remains a non-rendering container.
+
+```xyzdsl
+"Sal/+10d+366c/+10d+330c/+10d+391c":"box-surface: 1d white; box-surface-top: none; box-surface-bottom: 2d gray;"
+```
+
+Observability has matching `observable-top`, `observable-right`,
+`observable-bottom`, `observable-left`, `observable-front`, and
+`observable-back` longhands. Each value is `true`, `false`, or an explicit signed
+axis. On an enclosure panel, `true` means see-through from that panel's **outside**:
++Y for top, +X for right, −Y for bottom, −X for left, −Z for front, +Z for back.
+The panel remains visible from inside. `false` keeps it visible on both sides.
+Visibility still uses each panel's center plane, follows transforms, suppresses
+shadows and selection rays while hidden, and leaves physical collision active.
+
+```xyzdsl
+"Sal/+10d+366c/+10d+330c/+10d+391c":"box-surface: 1d white; observable-top: true;"
+"Other/+6+4/+1+4/+1+4":"box-surface: 1d white; observable: true; observable-bottom: false;"
+```
+
+The first example hides only the ceiling when viewed from above. The second
+allows exterior views through every panel except its floor. Explicit directions
+retain their meaning: `observable: +y` assigns +Y to every panel and can hide the
+floor and walls at different camera heights. Use `observable-top: true` for a
+ceiling cutaway. Ordinary boxes retain the existing `observable: true` alias
+for +Z.
+
+Shorthands and longhands apply in source declaration order: a later shorthand
+replaces all earlier face values of that property; a later longhand replaces
+only its face. Reference settings are copied before local declarations are
+applied. Surface and enclosure observability settings do not propagate to ordinary
+children, but copied descendants retain their own settings. Face-specific
+properties and multi-value observability require an enabled enclosure, including
+one obtained through a reference. Unsupported combinations or malformed values
+produce diagnostics and omit the affected concrete subtree. Observability on an
+omitted face has no rendering effect.

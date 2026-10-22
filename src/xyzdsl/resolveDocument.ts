@@ -1,3 +1,4 @@
+import { parseBoxSurfaceDeclaration } from './boxSurfaceParser';
 import { resolveLayout } from './resolveLayout';
 import type {
   XyzDslBoxSpec,
@@ -420,18 +421,29 @@ export function resolveXyzDslDocument(objects: SpatialObject[]): {
   diagnostics: ParseDiagnostic[];
 } {
   const diagnostics: ParseDiagnostic[] = [];
+  const surfaces = new Map<SpatialObject, SpatialObject['boxSurface']>();
+  const surfaceFor = (object: SpatialObject): SpatialObject['boxSurface'] => {
+    if (surfaces.has(object)) return surfaces.get(object);
+    const target = object.reference.targetPath ? latestEntryBefore(objects, object.reference.targetPath, object.lineNumber) : undefined;
+    const messages: string[] = [];
+    const surface = parseBoxSurfaceDeclaration(object.surfaceDeclarations ?? [], messages, target ? surfaceFor(target) : object.boxSurface);
+    if (object.declarationOnly && surface) {
+      surface.invalid = true;
+      messages.push('box-surface requires a concrete box declaration.');
+    }
+    diagnostics.push(...messages.map(message => ({ line: object.lineNumber, source: object.source, message })));
+    surfaces.set(object, surface);
+    return surface;
+  };
+  objects = objects.map(object => {
+    const boxSurface = surfaceFor(object);
+    return { ...object, boxSurface, material: boxSurface ? { ...object.material, observable: undefined } : object.material };
+  });
   const effectiveObjects = latestNamedEntries(objects);
   const instances = effectiveObjects.filter(
     (object) => !object.declarationOnly && object.box,
   );
   const concreteNamespaces = concreteNamespaceSet(effectiveObjects);
-
-  const surfaceFor = (object: SpatialObject): SpatialObject['boxSurface'] => {
-    if (object.boxSurface !== undefined) return object.boxSurface;
-    if (!object.reference.targetPath) return undefined;
-    const target = latestEntryBefore(objects, object.reference.targetPath, object.lineNumber);
-    return target ? surfaceFor(target) : undefined;
-  };
 
   const resolveObject = (
     object: SpatialObject,
@@ -464,7 +476,7 @@ export function resolveXyzDslDocument(objects: SpatialObject[]): {
 
     return {
       ...object,
-      boxSurface: surfaceFor(object),
+      boxSurface: object.boxSurface,
       namespace,
       id: options.idPrefix ? `${options.idPrefix}${idPath}` : idPath,
       box: object.box!,

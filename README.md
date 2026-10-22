@@ -207,3 +207,22 @@ and shadows. Selecting a panel selects the enclosure's source declaration.
 CSG cuts and model/content/light combinations are not supported in this first
 version. See the [box-surface specification](SPECIFICATION.md#box-surfaces) for
 scaling, validation, and generation limits.
+
+### Individual panels and cutaway views
+
+Surface and observability shorthands accept 1, 2, 3, or 6 comma-separated values:
+all faces; top/bottom and walls; top/bottom, right/left, and front/back;
+or top, right, bottom, left, front, back respectively. Override a single face
+with `box-surface-<face>` or `observable-<face>`, in declaration order.
+
+```xyzdsl
+"Sal/+10d+366c/+10d+330c/+10d+391c":"box-surface: 1d white; box-surface-bottom: 2d gray; observable-top: true;"
+```
+
+This room has a thicker gray floor and a ceiling you can see through from above.
+`box-surface-top: none` removes the ceiling instead. `observable: true` makes
+all panels see-through from outside; add `observable-bottom: false` to keep the
+floor visible. These enclosure settings do not affect ordinary children.
+Explicit `observable: +y` still applies +Y separately to every panel; use the
+face-specific form to target only the ceiling. Ordinary boxes retain their
+existing visibility behavior. See [per-face rules](SPECIFICATION.md#per-face-surface-and-observability-properties).
