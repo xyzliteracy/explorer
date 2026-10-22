@@ -1,4 +1,5 @@
 import defaultDraft from '../defaultDraft.xyzdsl?raw';
+import { viewPoints } from './viewPoints';
 import { describe, expect, it } from 'vitest';
 import { createSpatialDocument } from '../model/createSpatialDocument';
 import { lightNodes, lightingBounds, pointShadowSettings } from './Lighting';
@@ -71,13 +72,13 @@ describe('point-shadow precision', () => {
   });
 });
 
-it('ships the Pap default draft with four explicit lights and seven viewpoints', () => {
+it('ships the Sal default draft with two explicit lights and three viewpoints', () => {
   const document = createSpatialDocument(defaultDraft);
   expect(document.diagnostics).toEqual([]);
   const lights = lightNodes(document);
-  expect(lights).toHaveLength(4);
+  expect(lights).toHaveLength(2);
   for (const light of lights) {
     expect(light.light).toEqual({ color: '#ffffff', intensity: 10, distance: 0 });
   }
-  expect(document.nodes.filter(node => node.metadata?.viewPoint)).toHaveLength(7);
+  expect(viewPoints(document)).toHaveLength(3);
 });
