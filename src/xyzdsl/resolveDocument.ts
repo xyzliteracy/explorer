@@ -21,6 +21,9 @@ export interface ResolvedSpatialObject extends SpatialObject {
   namespacePath: string;
   parentNamespacePath: string;
   renderable: boolean;
+  surfaceSourceId?: string;
+  surfaceFace?: string;
+  layoutEligible?: boolean;
   materializedFrom?: string;
   anchorScale?: [number, number, number];
   referenceDimensions?: [number, number, number];
@@ -423,6 +426,13 @@ export function resolveXyzDslDocument(objects: SpatialObject[]): {
   );
   const concreteNamespaces = concreteNamespaceSet(effectiveObjects);
 
+  const surfaceFor = (object: SpatialObject): SpatialObject['boxSurface'] => {
+    if (object.boxSurface !== undefined) return object.boxSurface;
+    if (!object.reference.targetPath) return undefined;
+    const target = latestEntryBefore(objects, object.reference.targetPath, object.lineNumber);
+    return target ? surfaceFor(target) : undefined;
+  };
+
   const resolveObject = (
     object: SpatialObject,
     index: number,
@@ -454,6 +464,7 @@ export function resolveXyzDslDocument(objects: SpatialObject[]): {
 
     return {
       ...object,
+      boxSurface: surfaceFor(object),
       namespace,
       id: options.idPrefix ? `${options.idPrefix}${idPath}` : idPath,
       box: object.box!,
@@ -525,7 +536,7 @@ export function resolveXyzDslDocument(objects: SpatialObject[]): {
       object.reference.targetPath,
       object.lineNumber,
     );
-    if (object.reference.scale && isCompoundReference) {
+    if (object.reference.scale && (isCompoundReference || object.boxSurface)) {
       object.referenceDimensions = target?.box
         ? dimensionsFromBox(target.box)
         : dimensionsFromRootChildren(descendants, targetNamespace);
@@ -625,6 +636,7 @@ export function resolveXyzDslDocument(objects: SpatialObject[]): {
     objects: resolveLayout(allObjects.map((object) => ({
       ...object,
       anchorScale: anchorScaleById.get(object.id) ?? object.anchorScale,
+      layoutEligible: renderEligibleObjects.includes(object),
       renderable:
         renderEligibleObjects.includes(object) &&
         !hasMaterializedChildInstance(object, renderEligibleObjects),

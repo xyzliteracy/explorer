@@ -101,7 +101,14 @@ export interface XyzDslRepeatSpec {
   invalid?: boolean;
 }
 
+export interface XyzDslBoxSurfaceSpec {
+  thickness: number;
+  color: string | number;
+  invalid?: boolean;
+}
+
 export interface SpatialObject {
+  boxSurface?: XyzDslBoxSurfaceSpec | null;
   repeat?: XyzDslRepeatSpec;
   light?: XyzDslLightSpec;
   viewPoint?: boolean;

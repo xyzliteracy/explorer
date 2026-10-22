@@ -32,6 +32,7 @@ export function resolveLayout(
     const end = box.endAxes ?? [];
     const repeat = object.repeat;
     const dynamic = fill.length > 0 || end.length > 0 || repeat !== undefined;
+    if (object.boxSurface?.invalid) return;
     if (repeat?.invalid) return; // The property parser already diagnosed this declaration.
     if (dynamic && !parent) {
       // Unanchored template definitions are resolved in the context of each reference.
@@ -71,6 +72,16 @@ export function resolveLayout(
         return;
       }
       anchorScale = SIZES.map((size, index) => box[size] / object.referenceDimensions![index]) as [number, number, number];
+    }
+    const surface = object.boxSurface;
+    const localSizes = SIZES.map((size, index) => box[size] / (anchorScale?.[index] ?? 1));
+    if (surface && (object.geometry.kind !== 'box' || object.geometry.operation || object.geometry['box-radius'] || object.geometry.puff || object.model.source || object.content.kind || object.light || object.viewPoint)) {
+      report(object, 'box-surface supports plain boxes only; model, content, light, view-point, CSG and deformed geometry combinations are unsupported.');
+      return;
+    }
+    if (surface && localSizes.some(size => !Number.isFinite(size) || 2 * surface.thickness >= size)) {
+      report(object, 'box-surface requires twice its thickness to be smaller than every resolved local box dimension.');
+      return;
     }
     const counts = AXES.map((axis, index) => {
       if (!repeat?.axes.includes(axis)) return 1;
@@ -116,7 +127,45 @@ export function resolveLayout(
         id: repeated ? `${object.id}@${canonicalNamespacePath(instanceNamespace)}` : object.id,
         ...(repeated ? { repeatSourceId: object.id, repeatIndices: repeat ? indices : parent?.repeatIndices } : {}),
       };
+      if (surface) instance.renderable = false;
       result.push(instance);
+      if (surface && object.layoutEligible) {
+        const [width, height, depth] = localSizes;
+        const t = surface.thickness;
+        const panels = [
+          ['ceiling', 0, height - t, 0, width, t, depth],
+          ['floor', 0, 0, 0, width, t, depth],
+          ['front', 0, 0, 0, width, height, t],
+          ['back', 0, 0, depth - t, width, height, t],
+          ['left', 0, 0, 0, t, height, depth],
+          ['right', width - t, 0, 0, t, height, depth],
+        ] as const;
+        // Anonymous surfaces need an internal anchor namespace for parenting.
+        if (!instance.namespace.length) {
+          instance.namespace = [`#surface${instance.id}`];
+          instance.namespacePath = canonicalNamespacePath(instance.namespace);
+        }
+        for (const [face, px, py, pz, pw, ph, pd] of panels) {
+          if (++generated > MAX_LAYOUT_INSTANCES) throw budgetExceeded;
+          const panelNamespace = [...instance.namespace, `#surface-${face}`];
+          result.push({
+            ...instance,
+            id: `${instance.id}#surface-${face}`,
+            namespace: panelNamespace,
+            namespacePath: canonicalNamespacePath(panelNamespace),
+            parentNamespacePath: instance.namespacePath,
+            box: { source: object.box.source, x: px, y: py, z: pz, width: pw, height: ph, depth: pd },
+            material: { ...instance.material, color: surface.color },
+            geometry: { kind: 'box', diagnostics: [] },
+            transform: { rotation: [0, 0, 0], diagnostics: [] },
+            reference: { diagnostics: [] },
+            boxSurface: undefined, repeat: undefined, repeatClip: undefined,
+            anchorScale: undefined, referenceDimensions: undefined,
+            surfaceSourceId: instance.id, surfaceFace: face,
+            renderable: true,
+          });
+        }
+      }
       for (const child of children.get(object) ?? []) visit(child, instance, object);
     }
   }
@@ -126,7 +175,7 @@ export function resolveLayout(
     catch (error) {
       if (error !== budgetExceeded) throw error;
       result.splice(checkpoint);
-      report(root, `Nested repetition exceeds the ${MAX_LAYOUT_INSTANCES} generated-instance budget; this root subtree was omitted.`);
+      report(root, `Layout generation exceeds the ${MAX_LAYOUT_INSTANCES} generated-instance budget; this root subtree was omitted.`);
     }
   }
   return result;

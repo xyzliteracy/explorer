@@ -132,6 +132,7 @@ export function selectionTargetForNodeId(nodes: SpatialNode[], id?: string): Spa
   }
 
   const leaf = path.at(-1);
+  if (leaf?.metadata?.surfaceSourceId) return findNodeById(nodes, leaf.metadata.surfaceSourceId as string);
   if (leaf?.metadata?.viewPoint) return leaf;
 
   return [...path].reverse().find(isEditableContainerAnchor) ?? leaf;

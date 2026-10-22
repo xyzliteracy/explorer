@@ -37,6 +37,11 @@ export function parseXyzDslDeclaration(line: string, lineNumber = 1): ParseResul
     const path = parseXyzDslPath(match.groups.box);
     const properties = parseObjectProperties(match.groups.properties);
 
+    if (path.isDeclarationOnly && properties.boxSurface) {
+      properties.diagnostics.push('box-surface requires a concrete box declaration.');
+      properties.boxSurface.invalid = true;
+    }
+
     return {
       ok: true,
       value: {
@@ -45,6 +50,7 @@ export function parseXyzDslDeclaration(line: string, lineNumber = 1): ParseResul
         path,
         namespace: path.namespace,
         box: path.box,
+        boxSurface: properties.boxSurface,
         repeat: properties.repeat,
         light: properties.light,
         material: properties.material,

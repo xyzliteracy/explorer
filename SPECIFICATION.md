@@ -360,3 +360,72 @@ with model settings; an explicit `0, 0, 0` overrides an inherited correction.
 Y is vertical. `model-align: floor` places the corrected model at the bottom of
 its target box. Ordinary `rotation` still rotates the fitted object and its
 alignment offset together; use it for scene placement after reorientation.
+
+## Box surfaces
+
+`box-surface` creates six ordinary solid box panels inside a concrete box:
+
+```xyzdsl
+"Room/+10d+366c/+10d+330c/+10d+391c":"box-surface: 1d white;"
+```
+
+The syntax is `box-surface: <thickness> <color>`, or `box-surface: none`.
+Thickness uses the existing path-length grammar: unpadded integer digits with
+an optional `d`, `c`, or `m` suffix, or metres without a suffix. It must be
+finite and strictly positive. The remaining value uses the existing `color`
+syntax. Repeated properties use the final value. `none` disables a copied
+surface rule and restores ordinary box/container behavior.
+
+The declared dimensions describe the outside of the enclosure. For local
+width W, height H, depth D, and thickness t, panels have these local boxes:
+
+| Panel | Offset (X, Y, Z) | Size (X, Y, Z) |
+| --- | --- | --- |
+| Ceiling | (0, H−t, 0) | (W, t, D) |
+| Floor | (0, 0, 0) | (W, t, D) |
+| Front | (0, 0, 0) | (W, H, t) |
+| Back | (0, 0, D−t) | (W, H, t) |
+| Left | (0, 0, 0) | (t, H, D) |
+| Right | (W−t, 0, 0) | (t, H, D) |
+
+Panels overlap at corners, matching six explicit filled-axis box declarations.
+The room above has a 3.46 × 3.10 × 3.71 metre clear interior. Layout requires
+`2t < min(W, H, D)`; zero-width interiors are rejected. The parent is a
+non-rendering container, so no solid box fills the interior. Authored children
+keep the usual parent-local origin and dimensions; walls do not inset or resize
+child layout automatically.
+
+This is a local structural property, not an inherited namespace style. Ordinary
+children do not acquire it. References retain the target's surface rule,
+including rules on copied descendants; a local value overrides the copied rule.
+Namespace-only declarations cannot enable it. The shorthand color overrides
+panel color only; it does not change authored children's material defaults.
+Other material settings come from the container's resolved material.
+
+Panels are generated after parent-relative sizing, in the container's local
+coordinates, before world transforms. Rotations apply once through the parent.
+With `ref-scale: true`, panels and thickness scale with the template axes exactly
+once; nonuniform scaling can produce different world thicknesses on each axis.
+Without reference scaling, thickness remains the declared length. Repetition
+copies the enclosure and its children; `repeat-edge: clip` clips panels through
+the existing ancestor clipping rules.
+
+Generated faces use deterministic internal identities that cannot collide with
+source namespace names such as `Room/Floor`. Their metadata exposes
+`surfaceSourceId` and `surfaceFace`; source text and line number identify the
+authored enclosure. Selecting a face targets its enclosure, and edits change the
+single source declaration. Six generated nodes per enclosure count against the
+shared 10,000 generated-node document budget, including repeated enclosures.
+Exceeding that budget omits the containing root subtree atomically.
+
+Malformed thickness, invalid resolved dimensions, and unsupported combinations
+produce diagnostics and omit the affected concrete subtree. Version one supports
+plain boxes, ordinary children, materials, transforms, references, and repetition.
+A surface declaration cannot also be an imported model, content card, light,
+viewpoint, non-box/deformed primitive, or CSG operation. CSG tools whose
+conservative world bounds overlap a generated panel are omitted with a diagnostic;
+cutting doors or windows into these enclosures is not yet supported. Existing
+explicit panel declarations retain their behavior.
+
+Panels use the existing primitive rendering, shadow, observability, picking,
+and collision paths. No renderer-specific shell primitive or new asset is needed.

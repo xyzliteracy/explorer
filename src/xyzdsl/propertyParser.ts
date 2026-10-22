@@ -18,6 +18,7 @@ export function parsePropertyDeclarations(source: string): { declarations: XyzDs
       const value = rawValueParts.join(':').trim();
 
       if (!property || !value) {
+        if (property === 'box-surface') declarations.push({ property, value, source: declaration });
         diagnostics.push(`Ignoring malformed declaration "${declaration}".`);
         return;
       }

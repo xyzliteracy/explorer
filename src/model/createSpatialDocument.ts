@@ -5,7 +5,7 @@ import { resolveXyzDslDocument } from '../xyzdsl/resolveDocument';
 import { canonicalNamespacePath } from '../xyzdsl/pathParser';
 import type { SpatialDocument } from './SpatialDocument';
 import type { SpatialNode } from './SpatialNode';
-import { assignUnionGroups, boundsFromTransformedBox } from './collision';
+import { assignUnionGroups, boundsFromTransformedBox, boundsOverlap } from './collision';
 import { buildCsgExpressions } from './csg';
 import { geometryFromBox } from './geometry';
 import {
@@ -140,6 +140,8 @@ export function createSpatialDocument(source: string): SpatialDocument {
           reference: object.reference.targetPath,
           materializedFrom: object.materializedFrom,
           anchorScale: object.anchorScale,
+          surfaceSourceId: object.surfaceSourceId,
+          surfaceFace: object.surfaceFace,
           repeatSourceId: object.repeatSourceId,
           repeatIndices: object.repeatIndices,
         },
@@ -156,7 +158,19 @@ export function createSpatialDocument(source: string): SpatialDocument {
       }
     });
 
-  const groupedNodes = assignUnionGroups(flattenRenderable(topLevelNodes));
+  const candidates = flattenRenderable(topLevelNodes);
+  const surfaces = candidates.filter(node => node.metadata?.surfaceSourceId);
+  for (const node of candidates) {
+    if (node.geometry.operation && surfaces.some(panel => boundsOverlap(node.bounds, panel.bounds))) {
+      node.renderable = false;
+      diagnostics.push({
+        line: node.metadata?.lineNumber as number,
+        source: node.source,
+        message: 'CSG tools overlapping box-surface panels are unsupported and omitted.',
+      });
+    }
+  }
+  const groupedNodes = assignUnionGroups(candidates.filter(node => node.renderable));
   const csg = buildCsgExpressions(groupedNodes);
   const renderNodes = csg.nodes.filter((node) => !node.csgConsumed && !node.csgExpressionId);
   const nodes = applyRenderableStateToTree(topLevelNodes, csg.nodes);

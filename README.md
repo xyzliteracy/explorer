@@ -188,3 +188,22 @@ so opening a large bundle does not require decompressing all models into JavaScr
 memory. ZIP64, encryption, and compressed ZIP entries are not supported by v1.
 Local bundles use the same source editing, error display, resource cleanup, and
 remote-store switching as scene folders.
+
+## Rooms with box-surface
+
+Create six inward-extending boundary panels with one declaration:
+
+```xyzdsl
+"Room/+10d+366c/+10d+330c/+10d+391c":"box-surface: 1d white;"
+```
+
+This gives the room 10 cm thick white walls, a ceiling, and a floor, within its
+3.66 × 3.30 × 3.91 metre outer box. The clear interior is
+3.46 × 3.10 × 3.71 metres. Children keep normal local coordinates and do not
+inherit the shell rule. References retain it; `box-surface: none` cancels it.
+Thickness uses existing path units and must be less than half every local box
+dimension. Generated panels support transforms, materials, repetition, collision,
+and shadows. Selecting a panel selects the enclosure's source declaration.
+CSG cuts and model/content/light combinations are not supported in this first
+version. See the [box-surface specification](SPECIFICATION.md#box-surfaces) for
+scaling, validation, and generation limits.

@@ -1,3 +1,4 @@
+import { parseBoxSurfaceDeclaration } from './boxSurfaceParser';
 import { parseRepeatDeclaration } from './repeatParser';
 import { parseContentDeclaration } from './contentParser';
 import { parseGeometryDeclaration } from './geometryParser';
@@ -16,6 +17,7 @@ import type {
 
 const SUPPORTED_OBJECT_PROPERTIES = new Set([
   ...SUPPORTED_MATERIAL_KEYS,
+  'box-surface',
   'view-point',
   'light-source',
   'light-intensity',
@@ -46,6 +48,7 @@ const SUPPORTED_OBJECT_PROPERTIES = new Set([
 ]);
 
 export interface XyzDslObjectPropertiesSpec {
+  boxSurface?: import('./types').XyzDslBoxSurfaceSpec | null;
   repeat?: import('./types').XyzDslRepeatSpec;
   light?: import('./types').XyzDslLightSpec;
   viewPoint?: boolean;
@@ -94,6 +97,7 @@ export function parseObjectProperties(source: string): XyzDslObjectPropertiesSpe
   if (!enabled && declarations.some(d => d.property.startsWith('light-') && d.property !== 'light-source')) diagnostics.push('Light options require light-source: true or point.');
 
   return {
+    boxSurface: parseBoxSurfaceDeclaration(declarations, diagnostics),
     repeat,
     light: enabled ? { intensity, distance, color: lightMaterial.color ?? '#ffffff' } : undefined,
     viewPoint: marker?.value === 'true',
