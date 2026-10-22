@@ -157,8 +157,8 @@ export function SceneRoot({ document: spatialDocument, selectedNodeId, onSelectN
       />
       </ModelRuntime>
     </Canvas>
-    {preparation !== 'ready' && <div className="scene-preparation" aria-live="polite" data-model-preparation={preparation}>
-      <span>{preparation === 'context-lost' ? 'Graphics were interrupted. Recovering with reduced graphics…' : preparation === 'error' ? 'The scene could not be prepared. Check its model assets or retry.' : 'Preparing your scene…'}</span>
+    {(preparation === 'error' || preparation === 'context-lost') && <div className={preparation === 'error' ? 'scene-model-error' : 'scene-preparation'} role={preparation === 'error' ? 'alert' : 'status'} aria-live="polite" data-model-preparation={preparation === 'context-lost' ? preparation : undefined} data-model-error={preparation === 'error' ? true : undefined}>
+      <span>{preparation === 'context-lost' ? 'Graphics were interrupted. Recovering with reduced graphics…' : 'Some models could not be loaded. You can keep exploring or retry.'}</span>
       {import.meta.env.DEV && preparation === 'error' && assetStatus?.errors.map(error => <small key={error}>{error}</small>)}
       {preparation === 'error' && <button onClick={() => setModelRetry(value => value + 1)}>Retry models</button>}
       {preparation === 'context-lost' && <button onClick={retryRenderer}>Restart viewer</button>}

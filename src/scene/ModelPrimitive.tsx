@@ -5,7 +5,7 @@ import { threeClipPlanes } from '../model/clipping';
 import { clippedMeshRaycast, installClippedRaycast } from './clipping';
 import { useFrame } from '@react-three/fiber';
 import { Component, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ErrorInfo, type ReactNode } from 'react';
-import { useModelAsset, useOriginalModelAsset, useModelPresentation, useModelRetryGeneration, useModelMemoryPressure, useModelSceneRevealed } from '../performance/ModelRuntime';
+import { useModelAsset, useOriginalModelAsset, useModelPresentation, useModelRetryGeneration, useModelMemoryPressure } from '../performance/ModelRuntime';
 import { modelScreenPixels, type ModelTier } from '../performance/modelVisibility';
 import { currentModelUpgradePolicy } from '../performance/modelUpgradeMemory';
 import { modelOccluded } from '../performance/modelOcclusion';
@@ -25,9 +25,10 @@ function ModelFailure({ error }: { error?: Error }) {
   return null;
 }
 
-class ModelErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean; error?: Error }> {
+class ModelErrorBoundary extends Component<{ children: ReactNode; recovery?: number }, { failed: boolean; error?: Error }> {
   state: { failed: boolean; error?: Error } = { failed: false };
   static getDerivedStateFromError(error: Error) { return { failed: true, error }; }
+  componentDidUpdate(previous: { recovery?: number }) { if (this.state.failed && previous.recovery !== this.props.recovery) this.setState({ failed: false, error: undefined }); }
   componentDidCatch(error: Error, info: ErrorInfo) { console.error('Unable to render GLB model.', error, info); }
   render() { return this.state.failed ? <ModelFailure error={this.state.error} /> : this.props.children; }
 }
@@ -107,14 +108,13 @@ export function StreamingModel({ node, tier, resolved, originalNeeded = false, o
   const original = useOriginalModelAsset(originalUrl === targetUrl || originalUrl === fallbackUrl ? undefined : originalUrl, originalPriority);
   const baseline = target?.value ? target : fallback?.value ? fallback : undefined;
   const asset = original?.value ? original : baseline;
-  const revealed = useModelSceneRevealed();
   useEffect(() => {
     // Extremely aggressive inferred simplification is unsafe for close-up UV
     // fidelity. Once inspected at original quality, preserve it for this model.
     if (original?.value && target?.value && original.triangles > target.triangles * 32) onRetainOriginal?.();
   }, [original?.value, original?.triangles, target?.value, target?.triangles, onRetainOriginal]);
   const error = fallbackUrl ? fallback?.error : target?.error;
-  useModelPresentation(Boolean(asset?.value) && (revealed || !originalUrl || originalUrl === fallbackUrl || originalUrl === targetUrl || Boolean(original?.value || original?.error)), error);
+  useModelPresentation(Boolean(asset?.value), error);
   if (!asset?.value) {
     return null;
   }
@@ -185,7 +185,7 @@ export function ModelPrimitive({ node, onSelect, selectionEnabled = true, onPrec
   );
   function handleClick(event: ThreeEvent<MouseEvent>) { event.stopPropagation(); if (shouldSelectFromClick(selectionEnabled, event)) onSelect?.(node.id); }
   return <group ref={group} position={position} rotation={rotation} scale={scale} onClick={handleClick} userData={{ spatialNodeId: node.id, model: model.source, xyzClippingPlanes: node.clippingPlanes }}>
-    <ModelErrorBoundary key={`${model.source}:${model.previewSource}:${model.detailSource}:${model.fit}:${model.align}:${recovery}`}>
+    <ModelErrorBoundary key={`${model.source}:${model.previewSource}:${model.detailSource}:${model.fit}:${model.align}`} recovery={recovery}>
       <Suspense fallback={<ModelFailure />}><StreamingModel node={node} tier={tier} originalNeeded={originalNeeded} originalPriority={originalPriority} onRetainOriginal={preserveOriginal} resolved={resolved} selected={selected} tourMode={tourMode} onPrecisionScaleChange={handlePrecisionScaleChange} /></Suspense>
     </ModelErrorBoundary>
     <mesh raycast={clippedMeshRaycast} userData={{ povCollisionIgnored: true }}>

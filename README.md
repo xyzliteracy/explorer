@@ -121,11 +121,23 @@ For example, this declaration discovers variants beside the declared URL as the 
 
 The resolved `model` is the base asset; the resolver does not generate variant files. The `.standard.glb`, `.preview.glb`, and `.detail.glb` names match the output of `npm run assets:prepare`. URL query strings and fragments are preserved when deriving sibling URLs.
 
-Explicit `model-preview` and `model-detail` declarations override automatic lookup independently. Inherited variants also take precedence; overriding `model` clears inherited variants so new siblings are inferred from the replacement source. If an inferred variant fails to load, the renderer falls back to the resolved base asset (normally `.standard.glb`), retaining any loaded preview while it loads. Explicit variant failures retain the existing preview/error behavior. All assets remain subject to the loading and memory budgets.
+Explicit `model-preview` and `model-detail` declarations override automatic lookup
+independently. Inherited variants take precedence; overriding `model` clears them
+so siblings are inferred from the replacement source. Normal devices use textured
+detail, falling back to the original if it is unavailable. Previews require
+critical device capability evidence. Asset failures leave other models usable.
 
-Selecting a model's bounding box loads its original `<stem>.glb` above the prepared variants, even on devices using a lower automatic detail ceiling. Only the selected model can use this original tier. Prepared variants remain visible while it loads or if it fails. Deselecting or selecting another object releases the previous original immediately, without the prepared-asset cache delay. An in-flight decode may finish, but its obsolete result is disposed before the next original starts. Upload original GLBs alongside prepared siblings to enable this tier.
+Selection and sufficiently large visible models can request original GLBs within
+the runtime memory allowance. Loaded detail remains visible during an upgrade or
+if that upgrade is denied. Displayed originals remain protected while visible;
+cold offscreen originals can be released under pressure after eight seconds.
+Original upgrades are bounded, including on iPhones; selection does not bypass
+the memory checks.
 
-The selection-only original is outside the prepared-model triangle and memory limits, so selecting a large original can increase memory use and reduce frame rate. The scene's normal prepared assets retain their existing budgets.
+The scene and navigation render immediately. Individual GLBs load in the background
+and appear independently after their own GPU preparation. A slow or failed model
+does not cover the scene; failed assets have a nonblocking retry notice. Downloads
+can overlap within a shared memory allowance, while decoding stays serialized.
 
 See [the model performance guide](docs/performance/README.md) for asset preparation and streaming details.
 

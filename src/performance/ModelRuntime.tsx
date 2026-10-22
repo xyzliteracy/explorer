@@ -6,6 +6,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
+import { ModelDownloadBudget } from './ModelDownloadBudget';
 import { ModelAssetStore, ModelCapacityError, type AssetStatus } from './ModelAssetStore';
 import { currentModelUpgradePolicy, inspectOriginalGlb } from './modelUpgradeMemory';
 import { disposeModel, estimateModel, modelResources } from './modelResources';
@@ -57,7 +58,10 @@ function ModelPreparation({ registry, initialized, retry, onRevealed, onPreparat
   const revision = useSyncExternalStore(registry.subscribe, registry.snapshot);
   const { gl, scene, camera, invalidate } = useThree();
   const entries = [...registry.entries.values()];
-  const pending = !initialized || entries.some(entry => !entry.ready);
+  const [restoring, setRestoring] = useState(false);
+  useEffect(() => { if (contextLost) setRestoring(true); }, [contextLost]);
+  // Recover the models already present, without waiting for unrelated downloads.
+  const pending = !initialized || (!restoring && entries.some(entry => !entry.ready));
   const failed = entries.find(entry => entry.error)?.error;
   const [preparedRevision, setPreparedRevision] = useState(-1);
   const [preparationError, setPreparationError] = useState<Error>();
@@ -68,7 +72,8 @@ function ModelPreparation({ registry, initialized, retry, onRevealed, onPreparat
     let frame = 0;
     setPreparationError(undefined);
     setPreparedRevision(-1);
-    // Initialize textures including offscreen models before revealing the room.
+    // Rewarm after context recovery; initial models are already prepared individually.
+    // This status work never gates scene visibility.
     const resources = modelResources({ scenes: [scene] });
     void Promise.resolve().then(() => {
       if (cancelled) return;
@@ -78,18 +83,22 @@ function ModelPreparation({ registry, initialized, retry, onRevealed, onPreparat
       if (cancelled) return;
       invalidate();
       frame = requestAnimationFrame(() => {
-        frame = requestAnimationFrame(() => { if (!cancelled) { setPreparedRevision(revision); onRevealed(); } });
+        frame = requestAnimationFrame(() => { if (!cancelled) { setPreparedRevision(revision); setRestoring(false); onRevealed(); } });
       });
     }).catch(reason => { if (!cancelled) setPreparationError(reason instanceof Error ? reason : Error(String(reason))); });
     return () => { cancelled = true; controller.abort(); cancelAnimationFrame(frame); };
   }, [pending, revision, generation, gl, scene, camera, invalidate, onRevealed]);
-  const status: PreparationStatus = contextLost ? 'context-lost' : failed || preparationError ? 'error' : !pending && preparedRevision === revision ? 'ready' : 'loading';
+  const status: PreparationStatus = contextLost || restoring ? 'context-lost' : failed || preparationError ? 'error' : !pending && preparedRevision === revision ? 'ready' : 'loading';
   useEffect(() => { onPreparation?.(status); }, [onPreparation, status]);
-  if (onPreparation || status === 'ready') return null;
-  return <Html fullscreen style={{ pointerEvents: 'auto' }}><div role="status" aria-live="polite" data-model-preparation
-    style={{ position: 'absolute', inset: 0, background: '#151820', color: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12 }}>
-    {failed || preparationError ? <><span>The scene could not be prepared. Retry, or check its model assets.</span><button onClick={retry}>Retry models</button></> : <span>Preparing your scene…</span>}
-  </div></Html>;
+  if (onPreparation || status === 'ready' || status === 'loading') return null;
+  const recovering = status === 'context-lost';
+  return <Html fullscreen={recovering} style={{ pointerEvents: recovering ? 'auto' : 'none' }}>
+    <div role={recovering ? 'status' : 'alert'} data-model-preparation={recovering ? 'context-lost' : undefined} data-model-error={recovering ? undefined : true}
+      style={{ pointerEvents: 'auto', background: '#151820', color: '#f3f4f6', padding: 16, borderRadius: 8 }}>
+      <span>{recovering ? 'Graphics were interrupted. Recovering…' : 'Some models could not be loaded.'}</span>
+      <button onClick={retry}>Retry models</button>
+    </div>
+  </Html>;
 }
 
 export function ModelRuntime({ children, transport = direct, onStatus, onPreparation, retry = 0 }: { onPreparation?: (status: PreparationStatus) => void; children: ReactNode; retry?: number; transport?: (url: string) => Promise<string>; onStatus?: (status: AssetStatus) => void }) {
@@ -136,7 +145,16 @@ export function ModelRuntime({ children, transport = direct, onStatus, onPrepara
     const managers = new Set<LoadingManager>();
     const controllers = new Set<AbortController>();
     const costs = new Map<string, ReturnType<typeof inspectOriginalGlb>>();
-    const buffers = new Map<string, { buffer: ArrayBuffer; url: string }>();
+    type Download = { buffer: ArrayBuffer; url: string; release: () => void };
+    const buffers = new Map<string, Download>();
+    const downloads = new ModelDownloadBudget(policy.download);
+    // A completed decode may still be awaiting store publication. Count it
+    // until the synchronous estimator transfers ownership to the store.
+    const pendingCosts = new Map<object, { cost: ReturnType<typeof estimateModel>; optional: boolean }>();
+    const pendingBytes = (optionalOnly = false) => [...pendingCosts.values()].reduce((sum, entry) => sum + (!optionalOnly || entry.optional ? entry.cost.bytes : 0), 0);
+    const publishCost = (model: Parameters<typeof estimateModel>[0]) => { const cost = pendingCosts.get(model)?.cost ?? estimateModel(model); pendingCosts.delete(model); return cost; };
+    const dispose = (model: Parameters<typeof disposeModel>[0]) => { pendingCosts.delete(model); disposeModel(model); };
+    const clearBuffers = () => { buffers.forEach(item => item.release()); buffers.clear(); };
     const runSerial = <T,>(work: () => Promise<T>): Promise<T> => {
       const result = serial.then(work);
       serial = result.then(() => {}, () => {});
@@ -148,103 +166,129 @@ export function ModelRuntime({ children, transport = direct, onStatus, onPrepara
     const fetchOriginal = async (source: string) => {
       check();
       const controller = new AbortController(); controllers.add(controller);
+      let release: (() => void) | undefined;
       try {
         const url = await transport(source); check(controller.signal);
         const response = await fetch(url, { signal: controller.signal });
         if (!response.ok) throw Error(`Model request failed: ${response.status}`);
-        if (Number(response.headers.get('content-length')) > policy.download) throw Error('Original download exceeds the transient memory allowance.');
         const reader = response.body?.getReader();
-        if (!reader) throw Error('Cannot safely stream this optional original.');
-        const chunks: Uint8Array[] = []; let length = 0;
+        if (!reader) throw Error('Cannot safely stream this model.');
+        // Content-Encoding may be hidden by CORS while Content-Length describes
+        // compressed transfer bytes. Use GLB's decoded length from its prefix.
+        const first = await reader.read(); check(controller.signal);
+        if (!first.value || first.value.byteLength > policy.download) throw Error('Invalid model response.');
+        const prefix = new DataView(first.value.buffer, first.value.byteOffset, first.value.byteLength);
+        const glbLength = first.value.byteLength >= 12 && prefix.getUint32(0, true) === 0x46546c67 ? prefix.getUint32(8, true) : undefined;
+        const lengthHint = Number(response.headers.get('content-length'));
+        const sameOrigin = new URL(url, location.href).origin === location.origin;
+        const reservation = glbLength ?? (sameOrigin && lengthHint > 0 && !response.headers.get('content-encoding') ? lengthHint : policy.download);
+        release = await downloads.acquire(reservation, controller.signal);
+        const chunks: Uint8Array[] = [first.value]; let length = first.value.byteLength;
+        if (length > reservation) throw Error('Model response exceeds its declared size.');
         try {
           for (;;) {
             const { value, done } = await reader.read(); if (done) break;
             check(controller.signal); length += value.byteLength;
-            if (length > policy.download) throw Error('Original download exceeds the transient memory allowance.');
+            if (length > reservation) throw Error('Original download exceeds the transient memory allowance.');
             chunks.push(value);
           }
         } catch (error) { await reader.cancel(); throw error; }
         const bytes = new Uint8Array(length); let offset = 0;
         for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
         check(controller.signal);
-        return { buffer: bytes.buffer, url };
-      } finally { controller.abort(); controllers.delete(controller); }
+        return { buffer: bytes.buffer, url, release };
+      } catch (error) { release?.(); throw error; } finally { controller.abort(); controllers.delete(controller); }
     };
-    const load = (source: string, optional: boolean) => runSerial(async () => {
-      check();
-      const manager = new LoadingManager(); managers.add(manager);
-      const signal = manager.abortController.signal;
-      const failed: string[] = []; manager.onError = url => failed.push(url);
-      let model: Awaited<ReturnType<GLTFLoader['loadAsync']>> | undefined;
+    const load = async (source: string, optional: boolean) => {
+      // Fetch independently, then serialize only decode/upload work. A slow
+      // response must not prevent a different model from reaching the screen.
+      let buffered = optional ? buffers.get(source) : undefined;
+      if (optional) buffers.delete(source);
       try {
-        const loader = new GLTFLoader(manager).setDRACOLoader(draco).setKTX2Loader(ktx).setMeshoptDecoder(MeshoptDecoder);
-        let buffered = optional ? buffers.get(source) : undefined;
-        if (optional) buffers.delete(source);
-        const checkCapacity = (cost: { bytes: number; triangles: number }) => {
-          if (optional) {
-            if (!original.isReferenced(source)) throw new DOMException('Original no longer requested', 'AbortError');
-            if (cost.bytes > policy.originals) throw Error('Original exceeds the safe upgrade allowance; retaining textured detail.');
-            if (original.status().bytes + cost.bytes > original.budget.bytes) throw new ModelCapacityError(cost);
-          } else if (policy.constrained && next.status().bytes + original.status().bytes + cost.bytes > policy.combined) {
-            throw Error('This scene exceeds the device model memory allowance. Use smaller textured detail assets.');
-          }
-        };
-        if (optional) checkCapacity(costs.get(source)!);
-        // Required original fallbacks use the same pre-decode safety checks on
-        // constrained devices; a missing detail sibling cannot bypass the cap.
-        if (optional || policy.constrained) {
-          buffered ??= await fetchOriginal(source);
-          checkCapacity(inspectOriginalGlb(buffered.buffer));
-        }
-        if (buffered) model = await loader.parseAsync(buffered.buffer, LoaderUtils.extractUrlBase(buffered.url));
-        else { const url = await transport(source); check(signal); model = await loader.loadAsync(url); }
-        check(signal);
-        if (failed.length) throw Error('Model dependencies failed: ' + failed.join(', '));
-        checkCapacity(estimateModel(model));
-        model.scene.userData.xyzAssetUrl = source;
-        for (const texture of modelResources(model).textures) {
-          check(signal); gl.initTexture(texture);
-          // Yield between large uploads; never warm stale results on an old canvas.
-          const image = texture.image as { width?: number; height?: number } | undefined;
-          if ((image?.width ?? 0) * (image?.height ?? 0) >= 1024 * 1024) {
-            await new Promise<void>((resolve, reject) => {
-              const abort = () => { cancelAnimationFrame(frame); signal.removeEventListener('abort', abort); reject(new DOMException('Upload interrupted', 'AbortError')); };
-              const frame = requestAnimationFrame(() => { signal.removeEventListener('abort', abort); resolve(); });
-              signal.addEventListener('abort', abort, { once: true });
-            });
-          }
-        }
-        check(signal); await compileModel(gl, model.scene, camera, signal, scene); check(signal);
-        // The parser caches raw GLB buffers and unused decoded dependencies.
-        // Scene consumers need the render result, not those loading caches.
-        delete (model as Partial<typeof model>).parser;
-        return model;
-      } catch (error) { if (model) disposeModel(model); throw error; }
-      finally { managers.delete(manager); }
-    });
+        buffered ??= await fetchOriginal(source);
+        return await runSerial(async () => {
+          check();
+          const manager = new LoadingManager(); managers.add(manager);
+          const signal = manager.abortController.signal;
+          const failed: string[] = []; manager.onError = url => failed.push(url);
+          let model: Awaited<ReturnType<GLTFLoader['loadAsync']>> | undefined;
+          try {
+            const loader = new GLTFLoader(manager).setDRACOLoader(draco).setKTX2Loader(ktx).setMeshoptDecoder(MeshoptDecoder);
+
+            const checkCapacity = (cost: { bytes: number; triangles: number }) => {
+              if (optional) {
+                if (!original.isReferenced(source)) throw new DOMException('Original no longer requested', 'AbortError');
+                if (cost.bytes > policy.originals) throw Error('Original exceeds the safe upgrade allowance; retaining textured detail.');
+                if (original.status().bytes + pendingBytes(true) + cost.bytes > original.budget.bytes || next.status().bytes + original.status().bytes + pendingBytes() + cost.bytes > policy.combined) throw new ModelCapacityError(cost);
+              } else if (policy.constrained && next.status().bytes + original.status().bytes + pendingBytes() + cost.bytes > policy.combined) {
+                throw Error('This scene exceeds the device model memory allowance. Use smaller textured detail assets.');
+              }
+            };
+            if (optional) checkCapacity(costs.get(source)!);
+            // Required original fallbacks use the same pre-decode safety checks on
+            // constrained devices; a missing detail sibling cannot bypass the cap.
+            if (optional || policy.constrained) {
+              buffered ??= await fetchOriginal(source);
+              checkCapacity(inspectOriginalGlb(buffered.buffer));
+            }
+            model = await loader.parseAsync(buffered!.buffer, LoaderUtils.extractUrlBase(buffered!.url));
+            check(signal);
+            if (failed.length) throw Error('Model dependencies failed: ' + failed.join(', '));
+            const measured = estimateModel(model);
+            checkCapacity(measured); pendingCosts.set(model, { cost: measured, optional });
+            model.scene.userData.xyzAssetUrl = source;
+            for (const texture of modelResources(model).textures) {
+              check(signal); gl.initTexture(texture);
+              // Yield between large uploads; never warm stale results on an old canvas.
+              const image = texture.image as { width?: number; height?: number } | undefined;
+              if ((image?.width ?? 0) * (image?.height ?? 0) >= 1024 * 1024) {
+                await new Promise<void>((resolve, reject) => {
+                  const abort = () => { cancelAnimationFrame(frame); signal.removeEventListener('abort', abort); reject(new DOMException('Upload interrupted', 'AbortError')); };
+                  const frame = requestAnimationFrame(() => { signal.removeEventListener('abort', abort); resolve(); });
+                  signal.addEventListener('abort', abort, { once: true });
+                });
+              }
+            }
+            check(signal); await compileModel(gl, model.scene, camera, signal, scene); check(signal);
+            // The parser caches raw GLB buffers and unused decoded dependencies.
+            // Scene consumers need the render result, not those loading caches.
+            delete (model as Partial<typeof model>).parser;
+            return model;
+          } catch (error) { if (model) dispose(model); throw error; }
+          finally { managers.delete(manager); }
+        });
+      } finally { buffered?.release(); }
+    };
     const critical = criticallyUnderpoweredDevice();
     const next = new ModelAssetStore(url => load(url, false), {
       bytes: (critical ? 128 : policy.constrained ? 256 : 512) * 1024 * 1024, triangles: Infinity,
-      concurrent: 1, idleMs: 5000,
-    }, undefined, undefined, true);
-    const original = new ModelAssetStore(url => load(url, true), { bytes: policy.originals, triangles: Infinity, concurrent: 1, idleMs: 0 }, undefined, undefined, false,
-      url => runSerial(async () => {
-        check(); buffers.clear();
+      concurrent: 2, idleMs: 5000,
+    }, dispose, publishCost, true);
+    const original = new ModelAssetStore(url => load(url, true), { bytes: policy.originals, triangles: Infinity, concurrent: 1, idleMs: 0 }, dispose, publishCost, false,
+      async url => {
+        check(); clearBuffers();
         let cost = costs.get(url);
-        let buffered: { buffer: ArrayBuffer; url: string } | undefined;
-        if (!cost) { buffered = await fetchOriginal(url); cost = inspectOriginalGlb(buffered.buffer); costs.set(url, cost); }
-        if (cost.downloadBytes > policy.download || cost.bytes > policy.originals) throw Error('Original exceeds the safe upgrade allowance; retaining textured detail.');
-        if (original.status().bytes + cost.bytes > original.budget.bytes) throw new ModelCapacityError(cost);
-        buffered ??= await fetchOriginal(url);
-        check(); buffers.set(url, buffered);
-      }));
+        let buffered: Download | undefined;
+        try {
+          if (!cost) { buffered = await fetchOriginal(url); cost = inspectOriginalGlb(buffered.buffer); costs.set(url, cost); }
+          if (cost.downloadBytes > policy.download || cost.bytes > policy.originals) throw Error('Original exceeds the safe upgrade allowance; retaining textured detail.');
+          if (original.status().bytes + pendingBytes(true) + cost.bytes > original.budget.bytes || next.status().bytes + original.status().bytes + pendingBytes() + cost.bytes > policy.combined) throw new ModelCapacityError(cost);
+          buffered ??= await fetchOriginal(url);
+          check();
+          if (!original.isReferenced(url)) throw new DOMException('Original no longer requested', 'AbortError');
+          buffers.set(url, buffered);
+        } catch (error) { buffered?.release(); throw error; }
+      });
     const updateCapacity = () => {
       original.budget.bytes = Math.max(0, Math.min(policy.originals, policy.combined - next.status().bytes));
       original.refreshCapacity(); invalidate();
     };
-    const unsubscribeOriginal = original.subscribe(invalidate);
+    const unsubscribeOriginal = original.subscribe(() => {
+      for (const [url, buffered] of buffers) if (!original.isReferenced(url)) { buffered.release(); buffers.delete(url); }
+      invalidate();
+    });
     const unsubscribe = next.subscribe(updateCapacity);
-    const interrupt = () => { managers.forEach(manager => manager.abort()); controllers.forEach(controller => controller.abort()); buffers.clear(); };
+    const interrupt = () => { managers.forEach(manager => manager.abort()); controllers.forEach(controller => controller.abort()); clearBuffers(); };
     const pause = () => { suspended = true; next.setPaused(true); original.setPaused(true); interrupt(); };
     const resume = () => { if (stopped) return; suspended = false; next.retry(); original.retry(); next.setPaused(false); original.setPaused(false); invalidate(); };
     const stop = () => { if (stopped) return; stopped = true; next.setPaused(true); original.setPaused(true); interrupt(); next.close(); original.close(); draco.dispose(); ktx.dispose(); };

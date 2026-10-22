@@ -99,7 +99,8 @@ test('Pap room: compare original bedding and curtains at the same viewpoints', a
     return route.fulfill({ path: file, contentType: 'model/gltf-binary' });
   });
   await page.goto('/tests/performance/index.html?scene=lepapayer&original=bed,lounge_curtains');
-  await expect(page.locator('[data-model-preparation]')).toHaveCount(0, { timeout: 90000 });
+  await expect.poll(() => page.evaluate(() => window.performanceTest?.snapshot()?.assets?.ready ?? 0), { timeout: 90000 }).toBeGreaterThanOrEqual(23);
+  await expect(page.locator('[data-model-preparation]')).toHaveCount(0);
   await page.getByRole('button', { name: /Start tour/ }).click();
   for (let index = 0; index < 4; index++) {
     await page.waitForTimeout(500);

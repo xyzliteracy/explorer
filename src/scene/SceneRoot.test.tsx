@@ -104,11 +104,12 @@ it('shows light boxes only in the orbital editor, including when a light is sele
   expect(canvasElements(canvas.children).filter(element => element.type === LightSourceMarker || element.type === SelectionBounds)).toHaveLength(0);
 });
 
-it('keeps preparation and recovery controls outside Canvas', () => {
+it('shows the scene immediately and keeps failure and recovery controls outside Canvas', () => {
   viewport(true);
   render(<SceneRoot {...props} document={createSpatialDocument(source)} />);
   const runtime = () => canvasElements(canvas.children).find(child => child.type === ModelRuntime);
-  expect(screen.getByText('Preparing your scene…')).toBeDefined();
+  expect(screen.queryByText('Preparing your scene…')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Retry models' })).toBeNull();
   act(() => runtime().props.onPreparation('error'));
   fireEvent.click(screen.getByRole('button', { name: 'Retry models' }));
   expect(runtime().props.retry).toBe(1);

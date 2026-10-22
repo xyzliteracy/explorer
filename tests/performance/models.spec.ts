@@ -41,15 +41,17 @@ test('stable high-detail room: pan, selection, idle power and document disposal'
   expect(errors).toEqual([]);
   await test.info().attach('measurements', { body: JSON.stringify({ first, idle, cleared, requests }, null, 2), contentType: 'application/json' });
 });
-test('preparation covers incomplete models; failure stays covered until retry succeeds', async ({ page }) => {
+test('failed models leave the scene usable and can be retried independently', async ({ page }) => {
   let fail = true;
   await page.route('**/performance-models/bed_lamp*.glb', async route => {
     if (fail) return route.fulfill({ status: 503, body: 'temporarily unavailable' });
     return route.continue();
   });
   await page.goto(fixture);
-  await expect(page.getByText('The scene could not be prepared. Retry, or check its model assets.')).toBeVisible({ timeout: 60000 });
-  await expect(page.locator('[data-model-preparation]')).toBeVisible();
+  await expect(page.getByText('Some models could not be loaded. You can keep exploring or retry.')).toBeVisible({ timeout: 60000 });
+  await expect(page.locator('[data-model-preparation]')).toHaveCount(0);
+  await expect(page.locator('canvas')).toBeVisible();
+  await expect.poll(() => page.evaluate(() => window.performanceTest.snapshot().assets.ready)).toBe(9);
   fail = false;
   await page.getByRole('button', { name: 'Retry models' }).click();
   await ready(page);
@@ -92,4 +94,33 @@ test('only critical hardware uses a fixed preview set', async ({ page }) => {
   await page.goto(fixture); await ready(page);
   expect(requests).toHaveLength(10);
   expect(requests.every(url => url.endsWith('.preview.glb'))).toBe(true);
+});
+
+test('a delayed first GLB does not cover the scene or block a healthy later GLB', async ({ page }) => {
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  let first: string | undefined;
+  await page.route('**/performance-models/*.glb', async route => {
+    const url = route.request().url();
+    if (!first) first = url;
+    if (url === first) await gate;
+    await route.continue();
+  });
+  try {
+    await page.goto(fixture);
+    await expect(page.locator('canvas')).toBeVisible();
+    await expect(page.locator('[data-model-preparation]')).toHaveCount(0);
+    await expect.poll(() => page.evaluate(() => window.performanceTest?.snapshot()?.assets?.ready ?? 0)).toBeGreaterThan(0);
+    const partial = await page.evaluate(() => window.performanceTest.snapshot());
+    expect(partial.assets.ready).toBeLessThan(10);
+    expect(partial.presentations.some(model => model.meshes > 0)).toBe(true);
+    await page.evaluate(() => window.performanceTest.camera([4.5, 5, 13], [0, 0, 0]));
+    // Recovery warms existing models without waiting for the still-stalled GLB.
+    await page.evaluate(() => { window.performanceTest.lostContext = window.performanceTest.context(); window.performanceTest.lostContext.loseContext(); });
+    await expect(page.locator('[data-model-preparation]')).toHaveCount(1);
+    await page.waitForTimeout(300);
+    await page.evaluate(() => window.performanceTest.lostContext.restoreContext());
+    await expect(page.locator('[data-model-preparation]')).toHaveCount(0);
+  } finally { release(); }
+  await ready(page);
 });
