@@ -270,3 +270,8 @@ tiles together. Source assets are not modified. Skinned/instanced/morph meshes
 are excluded, and per-instance processing limits apply. See the
 [surface attachment specification](SPECIFICATION.md#surface-attached-components)
 for coordinate bases, repetition groups, and imported-model CSG limitations.
+
+
+In viewpoint tours, `observable` cutaways are disabled: walls, CSG results, and
+attached tiling stay visible from both sides. Orbit mode restores the authored
+cutaways. Removed panels and CSG openings remain open in both modes.

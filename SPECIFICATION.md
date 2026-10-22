@@ -652,3 +652,17 @@ cover orientation, clipping, references, missing faces, repeated cutters,
 shared-asset preservation, material groups, and picking/collision through cuts.
 Run `npm test` and `npm run build` in Explorer, and `npm run build:renderer`
 in the native viewer after shared renderer changes.
+
+
+## Observability in tours
+
+`observable` cutaways apply only outside tour mode. While a viewpoint tour is
+active, primitive panels, CSG results, and surface-attached models remain visible
+from both sides regardless of their observable settings. This also restores
+normal shadow casting, picking, and visual occlusion. Collision remains active
+in either mode. Leaving the tour restores camera-dependent cutaway behavior.
+
+No source edits are required. For adjoining rooms, a wall marked observable
+from the outside therefore stays visible when a tour viewpoint enters the
+neighboring room. CSG openings and explicitly omitted panels remain open;
+tour mode does not reconstruct removed geometry.

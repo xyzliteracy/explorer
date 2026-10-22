@@ -19,7 +19,7 @@ export const observableRaycast: Mesh['raycast'] = function (this: Mesh, raycaste
   if (this.visible) clippedMeshRaycast.call(this, raycaster, intersections);
 };
 
-export function useObservableMesh(node: SpatialNode) {
+export function useObservableMesh(node: SpatialNode, tourMode = false) {
   const ref = useRef<Mesh>(null);
   const visibilityTransform = node.surfaceVisibility?.transform ?? node.transform;
   const inverse = useMemo(() => matrixFromTransform(visibilityTransform).invert(), [visibilityTransform]);
@@ -30,7 +30,7 @@ export function useObservableMesh(node: SpatialNode) {
     const mesh = ref.current;
     if (!mesh) return;
     camera.getWorldPosition(cameraPosition);
-    const hidden = observableFrom(node.surfaceVisibility ? node.surfaceVisibility.observable : node.material.observable, cameraPosition, inverse, scratch);
+    const hidden = !tourMode && observableFrom(node.surfaceVisibility ? node.surfaceVisibility.observable : node.material.observable, cameraPosition, inverse, scratch);
     mesh.visible = !hidden;
     mesh.userData.observableHidden = hidden;
     mesh.raycast = observableRaycast;

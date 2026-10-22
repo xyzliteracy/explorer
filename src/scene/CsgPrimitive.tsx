@@ -8,13 +8,14 @@ import { shouldSelectFromClick } from './selectionClick';
 
 interface CsgPrimitiveProps {
   expression: CsgExpression;
+  tourMode?: boolean;
   onSelect?: (id: string) => void;
   selectionEnabled?: boolean;
 }
 
-export function CsgPrimitive({ expression, onSelect, selectionEnabled = true }: CsgPrimitiveProps) {
+export function CsgPrimitive({ expression, onSelect, selectionEnabled = true, tourMode = false }: CsgPrimitiveProps) {
   const geometry = useMemo(() => evaluateCsgExpressionGeometry(expression), [expression]);
-  const observableMesh = useObservableMesh(expression.base);
+  const observableMesh = useObservableMesh(expression.base, tourMode);
   const material = materialParameters(expression.base);
 
   function handleClick(event: ThreeEvent<MouseEvent>) {

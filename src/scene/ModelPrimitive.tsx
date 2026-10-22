@@ -134,7 +134,7 @@ export function ModelPrimitive({ node, onSelect, selectionEnabled = true, onPrec
   const surfaceCamera = useMemo(() => new Vector3(), []);
   useFrame(({ camera }) => {
     if (!group.current || !surfaceInverse) return;
-    const hidden = observableFrom(node.surfaceVisibility?.observable, camera.getWorldPosition(surfaceCamera), surfaceInverse);
+    const hidden = !tourMode && observableFrom(node.surfaceVisibility?.observable, camera.getWorldPosition(surfaceCamera), surfaceInverse);
     group.current.visible = !hidden;
     group.current.userData.observableHidden = hidden;
   }, -0.5);

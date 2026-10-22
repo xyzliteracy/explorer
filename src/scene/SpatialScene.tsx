@@ -19,10 +19,10 @@ export function SpatialScene({ document, selectedNodeId, onSelectNode, selection
  const gl = useThree(state => state.gl);
  useLayoutEffect(() => { gl.localClippingEnabled = true; }, [gl]);
  const scene = <>
- {document.csgExpressions.map(expression => <CsgPrimitive key={expression.id} expression={expression} onSelect={onSelectNode} selectionEnabled={selectionEnabled}/>)}
+ {document.csgExpressions.map(expression => <CsgPrimitive key={expression.id} expression={expression} tourMode={tourMode} onSelect={onSelectNode} selectionEnabled={selectionEnabled}/>)}
  {document.renderNodes.map(node => node.model?.source ?
   <ModelPrimitive key={node.id} node={node} selected={node.id === selectedNodeId} maxTier={maxTier} tourMode={tourMode} onSelect={onSelectNode} selectionEnabled={selectionEnabled} resolved={resolvedModels} onPrecisionScaleChange={onPrecisionScaleChange}/> : node.content?.kind ?
   renderContent ? <Fragment key={node.id}>{renderContent(node)}</Fragment> : <ContentPrimitive key={node.id} node={node} onSelect={onSelectNode} selectionEnabled={selectionEnabled}/> :
-  <SpatialPrimitive key={node.id} node={node} onSelect={onSelectNode} selectionEnabled={selectionEnabled}/>)}</>;
+  <SpatialPrimitive key={node.id} node={node} tourMode={tourMode} onSelect={onSelectNode} selectionEnabled={selectionEnabled}/>)}</>;
  return tourMode ? <TourModelFocus>{scene}</TourModelFocus> : scene;
 }

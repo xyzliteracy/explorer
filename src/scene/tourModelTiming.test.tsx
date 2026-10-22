@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
+import { PerspectiveCamera } from 'three';
 import { act, cleanup, render } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { ModelPrimitive } from './ModelPrimitive';
 import { createSpatialDocument } from '../model/createSpatialDocument';
 import { useModelAsset, useOriginalModelAsset } from '../performance/ModelRuntime';
-const state = vi.hoisted(() => ({ frame: undefined as undefined | ((value: any) => void), pixels: 500, ahead: 500, pressure: false, scaleWithHeight: false }));
-vi.mock('@react-three/fiber', () => ({ useFrame: (frame: any) => { state.frame = frame; } }));
+const state = vi.hoisted(() => ({ frame: undefined as undefined | ((value: any) => void), visibilityFrame: undefined as undefined | ((value: any) => void), pixels: 500, ahead: 500, pressure: false, scaleWithHeight: false }));
+vi.mock('@react-three/fiber', () => ({ useFrame: (frame: any, priority?: number) => { if (priority === -0.5) state.visibilityFrame = frame; else state.frame = frame; } }));
 vi.mock('../performance/modelVisibility', async original => ({ ...(await original<any>()), modelScreenPixels: (_camera: unknown, _world: unknown, _height: number, margin?: number) => (margin ? state.ahead : state.pixels) * (state.scaleWithHeight ? _height / 800 : 1) }));
 vi.mock('../performance/ModelRuntime', () => ({ useOriginalModelAsset: vi.fn(), useModelAsset: vi.fn(), useModelPresentation: vi.fn(), useModelRetryGeneration: () => 0, useModelMemoryPressure: () => state.pressure, useModelSceneRevealed: () => true }));
 vi.mock('../assets', () => ({ useAssetResolver: () => (url: string) => url }));
@@ -69,4 +70,17 @@ it('promotes a phone-sized model when rendered pixels justify original detail', 
   gl.getPixelRatio = () => 1.5;
   act(() => state.frame!({ camera: {}, size: { height: 800 }, gl }));
   expect(vi.mocked(useOriginalModelAsset).mock.calls.at(-1)?.[0]).toBe('chair.glb');
+});
+
+it('restores attached GLB visibility in tours and resumes it afterward', () => {
+  const attachment = { ...node, surfaceVisibility: { transform: node.transform, observable: '+z' as const } };
+  const view = render(<ModelPrimitive node={attachment} />);
+  const group = Object.assign(view.container.querySelector('group')!, { visible: true, userData: {} as Record<string, unknown> });
+  const camera = new PerspectiveCamera(); camera.position.set(0,0,5);
+  const frame = () => act(() => state.visibilityFrame!({camera}));
+  frame(); expect(group.visible).toBe(false);
+  view.rerender(<ModelPrimitive node={attachment} tourMode />);
+  frame(); expect(group.visible).toBe(true); expect(group.userData.observableHidden).toBe(false);
+  view.rerender(<ModelPrimitive node={attachment} />);
+  frame(); expect(group.visible).toBe(false);
 });

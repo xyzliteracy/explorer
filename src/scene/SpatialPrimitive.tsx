@@ -12,6 +12,7 @@ import { shouldSelectFromClick } from './selectionClick';
 
 interface SpatialPrimitiveProps {
   node: SpatialNode;
+  tourMode?: boolean;
   onSelect?: (id: string) => void;
   selectionEnabled?: boolean;
 }
@@ -49,9 +50,9 @@ export function materialParameters(node: SpatialNode): MeshStandardMaterialParam
   };
 }
 
-export function SpatialPrimitive({ node, onSelect, selectionEnabled = true }: SpatialPrimitiveProps) {
+export function SpatialPrimitive({ node, onSelect, selectionEnabled = true, tourMode = false }: SpatialPrimitiveProps) {
   const { position, rotation, scale } = node.transform;
-  const observableMesh = useObservableMesh(node);
+  const observableMesh = useObservableMesh(node, tourMode);
   const material = materialParameters(node);
   const clippingPlanes = useMemo(() => threeClipPlanes(node.clippingPlanes), [node.clippingPlanes]);
 
