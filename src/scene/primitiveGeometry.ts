@@ -1,3 +1,4 @@
+import { partitionGridGeometry } from './partitionGridGeometry';
 import { BoxGeometry, ConeGeometry, CylinderGeometry, SphereGeometry, type BufferGeometry } from 'three';
 import { RoundedBoxGeometry as RoundedBufferBoxGeometry } from 'three-stdlib';
 import type { SpatialGeometry } from '../model/geometry';
@@ -33,6 +34,7 @@ export function normalizedRoundedBoxRadius(geometry: SpatialGeometry): number {
 }
 
 export function bufferGeometryForSpatialGeometry(geometry: SpatialGeometry): BufferGeometry {
+  if (geometry.partitionGrid) return partitionGridGeometry(geometry.partitionGrid);
   switch (geometry.kind) {
     case 'cylinder':
       return new CylinderGeometry(0.5, 0.5, 1, 48);

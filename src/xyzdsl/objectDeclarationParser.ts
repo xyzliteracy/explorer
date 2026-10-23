@@ -1,3 +1,4 @@
+import { GRID_PROPERTIES } from './boxGrid';
 import { parseSurfaceAttachment } from './surfaceAttachment';
 import { SURFACE_PROPERTIES } from './boxSurfaceParser';
 import { parseRepeatDeclaration } from './repeatParser';
@@ -19,6 +20,7 @@ import type {
 const SUPPORTED_OBJECT_PROPERTIES = new Set([
   ...SUPPORTED_MATERIAL_KEYS,
   ...SURFACE_PROPERTIES,
+  ...GRID_PROPERTIES,
   'box-surface',
   'surface',
   'view-point',
@@ -51,6 +53,7 @@ const SUPPORTED_OBJECT_PROPERTIES = new Set([
 ]);
 
 export interface XyzDslObjectPropertiesSpec {
+  gridDeclarations?: import('./propertyParser').XyzDslPropertyDeclaration[];
   surface?: import('./surfaceAttachment').SurfaceAttachment;
   surfaceDeclarations?: import('./propertyParser').XyzDslPropertyDeclaration[];
   boxSurface?: import('./types').XyzDslBoxSurfaceSpec | null;
@@ -102,6 +105,7 @@ export function parseObjectProperties(source: string): XyzDslObjectPropertiesSpe
   if (!enabled && declarations.some(d => d.property.startsWith('light-') && d.property !== 'light-source')) diagnostics.push('Light options require light-source: true or point.');
 
   return {
+    gridDeclarations: declarations.filter(d => GRID_PROPERTIES.includes(d.property)),
     surfaceDeclarations: declarations.filter(d => d.property === 'box-surface' || d.property === 'observable' || SURFACE_PROPERTIES.includes(d.property)),
     surface: parseSurfaceAttachment(declarations, diagnostics),
     repeat,

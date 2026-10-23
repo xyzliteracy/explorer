@@ -287,3 +287,27 @@ for coordinate bases, repetition groups, and imported-model CSG limitations.
 In viewpoint tours, `observable` cutaways are disabled: walls, CSG results, and
 attached tiling stay visible from both sides. Orbit mode restores the authored
 cutaways. Removed panels and CSG openings remain open in both modes.
+
+### Grid partitions inside an enclosure
+
+```xyzdsl
+"Cabinet/+0+12d/+0+18d/+0+4d":"box-surface: 2c white; box-surface-front: none; box-grid: 3 4 2; box-partition: 1c gray;"
+"Cabinet/Item/+0+20c/+0+25c/+0+15c":"cell: 2 3 1; model: item.glb;"
+"Cabinet/Lining/+0+10c/+0+10c/+0+1m":"cell: all; surface: walls; model: tile.glb; repeat: x,y; repeat-edge: clip;"
+```
+
+`box-grid` specifies **columns, rows, slices** along local X, Y, Z. Counts are
+positive integers, measured left-to-right, bottom-to-top, front-to-back.
+`box-partition` supplies the positive thickness and color of shared internal
+dividers; outer faces retain their `box-surface` settings. The count longhands
+are `box-grid-columns`, `box-grid-rows`, and `box-grid-slices`.
+
+`cell: 2 3 1` uses one-based indices and places the child's origin at that cell's
+clear interior corner. `cell: all` copies the child subtree into every cell.
+Fill, far-edge placement, repetition, and `surface` attachments use the cell's
+clear dimensions. Children without `cell` keep the enclosure-relative layout.
+Dividers stay visible even when outer panels are observable; CSG cuts shared
+dividers and overlapping finishes without changing the logical cell layout.
+No internal junction faces are generated. Grids and copies share the document's
+10,000 generation budget. Fixed-length/fractional tracks and individual divider
+overrides are not supported yet. See [grid rules](SPECIFICATION.md#grid-partitions).

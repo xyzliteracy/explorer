@@ -110,6 +110,9 @@ export interface XyzDslBoxSurfaceSpec {
 }
 
 export interface SpatialObject {
+  boxGrid?: import('./boxGrid').BoxGridSpec | null;
+  cell?: import('./boxGrid').CellSpec | null;
+  gridDeclarations?: import('./propertyParser').XyzDslPropertyDeclaration[];
   surface?: import('./surfaceAttachment').SurfaceAttachment;
   surfaceDeclarations?: import('./propertyParser').XyzDslPropertyDeclaration[];
   boxSurface?: XyzDslBoxSurfaceSpec | null;

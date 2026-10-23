@@ -8,8 +8,12 @@ function isDeclarationOnly(node: SpatialNode): boolean {
   return Boolean(node.metadata?.declarationOnly);
 }
 
+function isLayoutFrame(node: SpatialNode): boolean {
+  return Boolean(node.metadata?.cellFrame || node.metadata?.attachmentFrame);
+}
+
 function isEditableContainerAnchor(node: SpatialNode): boolean {
-  return !node.renderable && !isDeclarationOnly(node) && lineNumberForNode(node) !== undefined;
+  return !isLayoutFrame(node) && !node.renderable && !isDeclarationOnly(node) && lineNumberForNode(node) !== undefined;
 }
 
 function firstRenderableDescendant(node: SpatialNode): SpatialNode | undefined {
@@ -74,7 +78,7 @@ export function findNodeByLineNumber(nodes: SpatialNode[], lineNumber?: number):
   }
 
   for (const node of nodes) {
-    if (lineNumberForNode(node) === lineNumber) {
+    if (!isLayoutFrame(node) && lineNumberForNode(node) === lineNumber) {
       return node;
     }
 
@@ -135,7 +139,11 @@ export function selectionTargetForNodeId(nodes: SpatialNode[], id?: string): Spa
   if (leaf?.metadata?.surfaceSourceId) return findNodeById(nodes, leaf.metadata.surfaceSourceId as string);
   if (leaf?.metadata?.viewPoint || leaf?.metadata?.attachedPanelId) return leaf;
 
-  return [...path].reverse().find(isEditableContainerAnchor) ?? leaf;
+  // A cell frame is generated layout, not the authored object being edited.
+  // Keep selection within that cell's authored subtree rather than promoting
+  // it to the enclosure (or exposing the synthetic cell's dimensions).
+  const cellFrameIndex = path.map(node => Boolean(node.metadata?.cellFrame)).lastIndexOf(true);
+  return path.slice(cellFrameIndex + 1).reverse().find(isEditableContainerAnchor) ?? leaf;
 }
 
 export { lineNumberForNode };

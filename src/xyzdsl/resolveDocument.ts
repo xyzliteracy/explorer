@@ -1,3 +1,4 @@
+import { parseGridProperties, type GridLayout } from './boxGrid';
 import { parseBoxSurfaceDeclaration } from './boxSurfaceParser';
 import { resolveLayout } from './resolveLayout';
 import type {
@@ -13,6 +14,12 @@ import type {
 import { canonicalNamespacePath } from './pathParser';
 
 export interface ResolvedSpatialObject extends SpatialObject {
+  gridLayout?: GridLayout;
+  partitionGrid?: GridLayout;
+  cellBoundaryPanels?: Partial<Record<import('./types').SurfaceFace, string>>;
+  cellIndices?: [number, number, number];
+  cellFrame?: boolean;
+  gridOwnerId?: string;
   box: XyzDslBoxSpec;
   material: XyzDslMaterialSpec;
   geometry: XyzDslGeometrySpec;
@@ -439,7 +446,23 @@ export function resolveXyzDslDocument(objects: SpatialObject[]): {
     surfaces.set(object, surface);
     return surface;
   };
+  const grids = new Map<SpatialObject, ReturnType<typeof parseGridProperties>>();
+  const gridFor = (object: SpatialObject): ReturnType<typeof parseGridProperties> => {
+    if (grids.has(object)) return grids.get(object)!;
+    const target = object.reference.targetPath ? latestEntryBefore(objects, object.reference.targetPath, object.lineNumber) : undefined;
+    const messages: string[] = [];
+    const grid = parseGridProperties(object.gridDeclarations ?? [], messages, target ? gridFor(target) : object);
+    if (object.declarationOnly && (grid.boxGrid || grid.cell)) {
+      if (grid.boxGrid) grid.boxGrid = { ...grid.boxGrid, invalid: true };
+      if (grid.cell) grid.cell = { ...grid.cell, invalid: true };
+      messages.push('box-grid and cell require concrete declarations.');
+    }
+    diagnostics.push(...messages.map(message => ({ line: object.lineNumber, source: object.source, message })));
+    grids.set(object, grid);
+    return grid;
+  };
   objects = objects.map(object => {
+    const grid = gridFor(object);
     const boxSurface = surfaceFor(object);
     let attachmentSource = object;
     while (!attachmentSource.surface && attachmentSource.reference.targetPath) {
@@ -449,7 +472,7 @@ export function resolveXyzDslDocument(objects: SpatialObject[]): {
     }
     object = { ...object, surface: attachmentSource.surface };
     if (object.declarationOnly && object.surface) diagnostics.push({ line: object.lineNumber, source: object.source, message: 'surface requires a concrete declaration.' });
-    return { ...object, boxSurface, material: boxSurface ? { ...object.material, observable: undefined } : object.material };
+    return { ...object, ...grid, boxSurface, material: boxSurface ? { ...object.material, observable: undefined } : object.material };
   });
   const effectiveObjects = latestNamedEntries(objects);
   const instances = effectiveObjects.filter(

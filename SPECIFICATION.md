@@ -669,3 +669,123 @@ No source edits are required. For adjoining rooms, a wall marked observable
 from the outside therefore stays visible when a tour viewpoint enters the
 neighboring room. CSG openings and explicitly omitted panels remain open;
 tour mode does not reconstruct removed geometry.
+
+## Grid partitions
+
+A concrete `box-surface` enclosure can divide its clear interior into an equal
+three-dimensional grid. These are local structural properties, not inherited
+namespace styles. References retain them and can override them in declaration
+order. Ordinary descendants do not acquire a grid or cell selection.
+
+```xyzdsl
+"Cabinet/+0+12d/+0+18d/+0+4d":"box-surface: 2c white; box-surface-front: none; box-grid: 3 4 2; box-partition: 1c gray;"
+"Cabinet/Item/+0+20c/+0+25c/+0+15c":"cell: 2 3 1; model: item.glb;"
+```
+
+| Property | Values | Meaning |
+| --- | --- | --- |
+| `box-grid` | Three positive integer counts, or `none` | Columns (X), rows (Y), slices (Z); `none` clears the grid and partition style |
+| `box-grid-columns` | One positive integer | Equal columns from left to right |
+| `box-grid-rows` | One positive integer | Equal rows from bottom to top |
+| `box-grid-slices` | One positive integer | Equal slices from front to back |
+| `box-partition` | Positive path length followed by color | Uniform internal-divider thickness and color |
+| `cell` | Three positive one-based indices, `all`, or `none` | Place in column/row/slice, copy into every cell, or clear a referenced cell selection |
+
+Declaring a grid longhand or partition style initializes unspecified counts to
+one. A count of one creates no divider on that axis. A `1 1 1` grid exposes one
+cell without internal geometry and needs no partition style. Any larger grid
+requires an explicit `box-partition`; it never guesses a thickness or color from
+potentially different outer faces. Grid and cell rules require concrete
+objects, including when used in templates. A grid requires an active
+`box-surface` enclosure; cancelling the shell on a reference also requires
+cancelling its grid. Existing plain-box restrictions for `box-surface` apply.
+
+### Clear dimensions and cell layout
+
+Resolve the enclosure and its existing outer-face thicknesses first. On each
+axis with clear interior extent `L`, count `n`, and divider thickness `t`:
+
+```text
+clear cell size = (L - (n - 1) × t) / n
+cell origin = outer near-face thickness + (index - 1) × (clear cell size + t)
+```
+
+Lengths use the enclosure's local coordinates before parent/reference transforms.
+Rotations and `ref-scale` apply once to the shell, dividers, cell frames, and
+children. Each repeated/reference enclosure owns its own grid. Omitted outer
+faces contribute no inset; they do not remove internal partitions.
+
+`cell` resolves against the nearest concrete parent, which must have a grid.
+Namespace-only grouping does not change that parent. Cell frames are internal
+layout anchors with deterministic identities, not authored namespace names.
+For `cell: all`, the child and its descendants are copied once per cell, with
+independent repetition and unique instance IDs. Selecting a copy retains its
+authored source ownership. Children without `cell` retain the existing enclosure
+interior coordinates and may span multiple cells. A child can itself declare
+another gridded enclosure, allowing nested subdivisions.
+
+Within a selected cell, `+0` starts at its clear interior corner. Fill and
+far-edge alignment use the clear cell extent. Repetition and `repeat-edge: clip`
+use cell boundaries. Ordinary explicitly sized children are not automatically
+clamped or clipped to a cell. Descendants use their usual parent coordinates.
+
+### Cell surfaces and shared solid geometry
+
+```xyzdsl
+"Cabinet/Lining/+0+10c/+0+10c/+0+1m":"cell: all; surface: walls; model: tile.glb; repeat: x,y; repeat-edge: clip;"
+```
+
+Combining `cell` and `surface` selects the cell before selecting its inward-facing
+boundary surfaces. The existing six face-local coordinate frames apply. Adjacent
+cells can attach different finishes to opposite sides of one divider. Internal
+boundaries exist wherever that axis has a divider; outer boundaries exist only
+where the corresponding shell face exists. Explicit missing-face targets produce
+a diagnostic; `walls` and `all` skip missing faces. Depth fill on an attachment
+uses the selected cell's clear depth normal to that face. Finishes add thickness
+inside the cell but do not further inset the logical cell layout.
+
+The divider lattice is rendered as one static solid per enclosure, containing
+only the boundary of the union of its slabs. Shared junctions emit no overlapping
+solids, duplicate coplanar faces, or internal faces. The generated node has
+`surfaceSourceId` pointing to its enclosure and `partitionGrid: true` metadata;
+selecting it selects the enclosure. Cell instances expose one-based
+`cellIndices` metadata. Individual divider overrides are reserved for a later
+extension; they are not part of this syntax.
+
+Outer-shell observability keeps its existing behavior. Internal dividers are
+always visible, and their attachments do not inherit outer-panel cutaways.
+Attachments on outer cell boundaries follow the corresponding shell panel.
+Tour mode continues to disable observable cutaways for all of these surfaces.
+
+Primitive CSG tools participate in the existing enclosure fan-out: a cut targeting
+an enclosure panel, its partition grid, or an attachment affects overlapping
+panels, the grid solid, and attached finishes of that concrete enclosure.
+Ordinary furniture is not included in that fan-out. Source ordering and target
+selection remain unchanged; the grid uses a conservative interior bounding box
+for candidate selection. Imported finishes use the existing static-model CSG
+path, including quantized geometry handling. Rendering, picking, and collision
+use the actual grid or cut geometry. CSG does not merge cells, change their
+indices, resize their clear extents, or remove their logical attachment frames.
+
+### Validation and bounded generation
+
+Counts and indices must be positive safe integers. Reject malformed values,
+out-of-range selections, missing grid parents, missing partition styles for
+multi-cell grids, and dimensions that leave no positive clear cell space.
+Invalid grids omit their enclosure subtree; invalid cell selections omit that
+child subtree. Diagnostics retain the authored line. Version one accepts equal
+counts only: fixed-length/fractional tracks, cell spans, and cell ranges are not
+implemented.
+
+Before generating each grid instance, reserve `(2×columns−1) × (2×rows−1) ×
+(2×slices−1)` units of the shared 10,000 generated-instance budget. This bounds
+both empty cells and solid lattice blocks, and therefore the boundary mesh work,
+even though the solid renders as one mesh. Generated shell panels, cell placement
+frames, attachment frames, and repeated copies also consume the shared budget.
+Exceeding it omits the containing root subtree atomically and releases that
+subtree's reservation so independent roots can still resolve.
+
+Coverage lives in `src/xyzdsl/boxGrid.test.ts` and
+`src/scene/partitionGridGeometry.test.ts`: clear dimensions, references, copies,
+attachments, budgets, closed outward geometry without internal faces, CSG,
+picking, and collision.

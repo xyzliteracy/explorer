@@ -1,4 +1,5 @@
-import { useMemo } from 'react';
+import { partitionGridGeometry } from './partitionGridGeometry';
+import { useEffect, useMemo } from 'react';
 import { threeClipPlanes } from '../model/clipping';
 import { useObservableMesh } from './observability';
 import { RoundedBoxGeometry } from '@react-three/drei';
@@ -17,7 +18,14 @@ interface SpatialPrimitiveProps {
   selectionEnabled?: boolean;
 }
 
+function PartitionGeometry({ grid }: { grid: NonNullable<SpatialGeometry['partitionGrid']> }) {
+  const geometry = useMemo(() => partitionGridGeometry(grid), [grid]);
+  useEffect(() => () => geometry.dispose(), [geometry]);
+  return <primitive object={geometry} attach="geometry" dispose={null} />;
+}
+
 function PrimitiveGeometry({ geometry }: { geometry: SpatialGeometry }) {
+  if (geometry.partitionGrid) return <PartitionGeometry grid={geometry.partitionGrid} />;
   switch (geometry.kind) {
     case 'cylinder':
       return <cylinderGeometry args={[0.5, 0.5, 1, 48]} />;

@@ -1,6 +1,7 @@
 import type { XyzDslBoxSpec, XyzDslCsgOperation, XyzDslGeometrySpec } from '../xyzdsl/types';
 
 export interface SpatialGeometry {
+  partitionGrid?: import('../xyzdsl/boxGrid').GridLayout;
   kind: XyzDslGeometrySpec['kind'];
   dimensions: [number, number, number];
   'box-radius'?: number;
