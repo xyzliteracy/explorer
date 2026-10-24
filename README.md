@@ -309,5 +309,28 @@ clear dimensions. Children without `cell` keep the enclosure-relative layout.
 Dividers stay visible even when outer panels are observable; CSG cuts shared
 dividers and overlapping finishes without changing the logical cell layout.
 No internal junction faces are generated. Grids and copies share the document's
-10,000 generation budget. Fixed-length/fractional tracks and individual divider
-overrides are not supported yet. See [grid rules](SPECIFICATION.md#grid-partitions).
+10,000 generation budget. Individual divider overrides are not supported. See
+[grid rules](SPECIFICATION.md#grid-partitions).
+
+
+### Unequal and L-shaped room layouts
+
+Track longhands also accept fixed clear lengths and fractional weights, such as
+`box-grid-columns: 30c 1fr 2fr`. `box-grid-areas` merges repeated names and removes
+dot cells. Columns are separated by spaces, rows by `|`, and slices by `/`.
+Each named area must be a rectangular cuboid.
+
+```xyzdsl
+"Rooms/+0+366c/+0+330c/+0+622c":"box-surface: 1d #fffdd0; box-partition: 1d #fffdd0; box-grid-columns: 140c 196c; box-grid-slices: 371c 221c; box-grid-areas: bedroom bedroom / . annex; observable: true;"
+"Rooms/Bed/+1356m+155c/+0+8d/+1d+205c":"cell: bedroom; model: salouis/wooden_bed.glb;"
+"Rooms/Tiling/+0+85c/+0+86c/+0+2c":"cell: bedroom; surface: walls; model: salouis/tile_triad.glb; reset-axes: 90,0,0; repeat: x; repeat-gap: 1m; repeat-edge: clip;"
+```
+
+This makes one L-shaped enclosure: a merged full-width bedroom in front, an
+annex at the back-right, and no rear-left floor or ceiling. Shared boundaries
+remain single walls. Cell coordinates begin inside the walls; `cell: all`
+visits each merged area once. See [unequal tracks and migration](SPECIFICATION.md#unequal-tracks-omissions-and-merged-areas)
+for exact dimensions, fractional sizing, omission rules, and the full tiling example.
+
+The complete [bedroom and annex scene](docs/examples/bedroom-grid.xyzdsl) migrates
+the furniture, lighting, viewpoints, tiling, and openings to one gridded enclosure.

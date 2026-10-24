@@ -18,6 +18,7 @@ export interface ResolvedSpatialObject extends SpatialObject {
   partitionGrid?: GridLayout;
   cellBoundaryPanels?: Partial<Record<import('./types').SurfaceFace, string>>;
   cellIndices?: [number, number, number];
+  cellBoundarySegments?: Partial<Record<import('./types').SurfaceFace, { panelId: string; clips: { axis: import('./types').AxisName; extent: number; start?: number }[] }[]>>;
   cellFrame?: boolean;
   gridOwnerId?: string;
   box: XyzDslBoxSpec;

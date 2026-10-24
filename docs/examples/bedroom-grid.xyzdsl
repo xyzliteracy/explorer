@@ -1,0 +1,34 @@
+"Rooms/+0+366c/+0+330c/+0+622c":"box-surface: 1d #fffdd0; box-partition: 1d #fffdd0; box-grid-columns: 140c 196c; box-grid-rows: 1; box-grid-slices: 371c 221c; box-grid-areas: bedroom bedroom / . annex; observable: true;"
+"Rooms/CeilingLamp/+1628m+34c/++7c/+193c+301m":"cell: bedroom; model: salouis/ceiling_lamp.glb"
+"Rooms/Lighting/+1628m+34c/+2975m+7c/+193c+301m":"cell: bedroom; light-source: true; light-color: #ffffff; light-intensity: 10; light-distance: 0"
+
+"Rooms/AnnexLighting/+728m+34c/+2975m+7c/+133c+301m":"cell: annex; light-source: true; light-color: #ffffff; light-intensity: 10; light-distance: 0"
+
+"Rooms/POV+1/+323m+1d/+1+1d/+3228m+101m" : "cell: bedroom; view-point: true; rotation: 0, -45, 0"
+"Rooms/POV+2/+323m+1d/+1+1d/+428m+101m" : "cell: bedroom; view-point: true; rotation: 0, -135, 0"
+"Rooms/POV+3/+2023m+1d/+1+1d/+5128m+101m" : "cell: bedroom; view-point: true; rotation: 0, 0, 0"
+
+
+"Rooms/WallTiling/+0+85c/+0+86c/+0+2c":"cell: bedroom; surface: walls; model: salouis/tile_triad.glb; reset-axes: 90,0,0; repeat: x; repeat-gap: 1m; repeat-edge: clip;"
+"Rooms/FloorTiling/+0+67c/+0+67c/+0+1c":"cell: bedroom; surface: bottom; reset-axes: 90,0,0; model: salouis/tile_quartet.glb; repeat: x,y; repeat-gap: 1m; repeat-edge: clip;"
+
+"Rooms/RoomOpening/+29c+88c/+0+205c/+369c+41c":"cell: bedroom; operation: subtraction"
+"Rooms/WindowOpening/+346c+2d/+93c+114c/+124c+128c":"cell: bedroom; operation: subtraction"
+"Rooms/BathroomOpening/+172c+88c/+0+205c/+369c+41c":"cell: bedroom; operation: subtraction"
+
+"Rooms/RoomDoor/+29c+88c/+0+205c/+355c+41c":"cell: bedroom; model: salouis/room_door.glb; reset-axes: 0,180,0"
+"Rooms/BathroomDoor/+172c+88c/+0+205c/+355c+41c":"cell: bedroom; model: salouis/bathroom_door.glb; reset-axes: 0,180,0"
+
+"Rooms/BedroomCurtains/+319c+301m/+0+243c/+94c+189c":"cell: bedroom; model: salouis/bedroom_curtains.glb; reset-axes: 0,270,0"
+"Rooms/Bed/+1356m+155c/+0+8d/+1d+205c" : "cell: bedroom; model: salouis/wooden_bed.glb"
+"Rooms/SideTable1/+937m+4d/+0+35c/+1d+295m" : "cell: bedroom; model: salouis/side_table.glb"
+"Rooms/SideTable2/+2937m+40c/+0+35c/+1d+295m" : "cell: bedroom; model: salouis/side_table.glb"
+"Rooms/BedroomRug/+1496m+126c/+0+5c/+2106m+8d" : "cell: bedroom; model: salouis/bedroom_rug.glb"
+"Rooms/Shelves/++59c/+0+96c/++44c" : "cell: bedroom; reset-axes: 0,180,0; model: salouis/wooden_shelves.glb"
+"Rooms/Handfan/+819m+35c/+1+34c/+0+101m" : "cell: bedroom; model: salouis/african_handfan.glb"
+"Rooms/WovenFan/+223c+4d/+1+4d/+0+1d" : "cell: bedroom; model: salouis/woven_fan.glb"
+"Rooms/ArtWork/+1469m+6d/+13d+5d/+0+6c" : "cell: bedroom; model: salouis/art_work.glb"
+"Rooms/BambooTable/+1d+36c/+0+45c/+114c+36c" : "cell: bedroom; model: salouis/bamboo_table.glb"
+
+
+"Rooms/AC/++20c/+25d+25c/+10c+67c" : "cell: bedroom; model: salouis/air_conditioner.glb; reset-axes: 0,270,0"

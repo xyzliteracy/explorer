@@ -672,8 +672,9 @@ tour mode does not reconstruct removed geometry.
 
 ## Grid partitions
 
-A concrete `box-surface` enclosure can divide its clear interior into an equal
-three-dimensional grid. These are local structural properties, not inherited
+A concrete `box-surface` enclosure can divide its clear interior into a
+three-dimensional grid with equal or unequal tracks, omitted cells, and merged
+rectangular areas. These are local structural properties, not inherited
 namespace styles. References retain them and can override them in declaration
 order. Ordinary descendants do not acquire a grid or cell selection.
 
@@ -685,11 +686,12 @@ order. Ordinary descendants do not acquire a grid or cell selection.
 | Property | Values | Meaning |
 | --- | --- | --- |
 | `box-grid` | Three positive integer counts, or `none` | Columns (X), rows (Y), slices (Z); `none` clears the grid and partition style |
-| `box-grid-columns` | One positive integer | Equal columns from left to right |
-| `box-grid-rows` | One positive integer | Equal rows from bottom to top |
-| `box-grid-slices` | One positive integer | Equal slices from front to back |
+| `box-grid-columns` | Positive integer count, or length/`fr` track list | Columns from left to right |
+| `box-grid-rows` | Positive integer count, or length/`fr` track list | Rows from bottom to top |
+| `box-grid-slices` | Positive integer count, or length/`fr` track list | Slices from front to back |
 | `box-partition` | Positive path length followed by color | Uniform internal-divider thickness and color |
-| `cell` | Three positive one-based indices, `all`, or `none` | Place in column/row/slice, copy into every cell, or clear a referenced cell selection |
+| `box-grid-areas` | Names and dots in a track-shaped map, or `none` | Merge repeated names and omit dot cells; `none` restores separate occupied cells |
+| `cell` | Area name, three positive one-based indices, `all`, or `none` | Place in an area/cell, copy into each occupied logical area, or clear a referenced selection |
 
 Declaring a grid longhand or partition style initializes unspecified counts to
 one. A count of one creates no divider on that axis. A `1 1 1` grid exposes one
@@ -718,7 +720,8 @@ faces contribute no inset; they do not remove internal partitions.
 `cell` resolves against the nearest concrete parent, which must have a grid.
 Namespace-only grouping does not change that parent. Cell frames are internal
 layout anchors with deterministic identities, not authored namespace names.
-For `cell: all`, the child and its descendants are copied once per cell, with
+For `cell: all`, the child and its descendants are copied once per occupied
+logical area (once per cell without an area map), with
 independent repetition and unique instance IDs. Selecting a copy retains its
 authored source ownership. Children without `cell` retain the existing enclosure
 interior coordinates and may span multiple cells. A child can itself declare
@@ -728,6 +731,69 @@ Within a selected cell, `+0` starts at its clear interior corner. Fill and
 far-edge alignment use the clear cell extent. Repetition and `repeat-edge: clip`
 use cell boundaries. Ordinary explicitly sized children are not automatically
 clamped or clipped to a cell. Descendants use their usual parent coordinates.
+
+### Unequal tracks, omissions, and merged areas
+
+A lone positive integer remains an equal-track count: `box-grid-columns: 3`.
+Use path lengths (`d` decimetres, `c` centimetres, `m` millimetres) or positive
+fractional weights for explicit tracks, for example:
+
+```xyzdsl
+"Shelf/+0+14d/+0+10d/+0+10d":"box-surface: 1d white; box-partition: 1d gray; box-grid-columns: 30c 1fr 2fr;"
+```
+
+Subtract outer panels and all divider widths first, then fixed tracks. Divide
+the remaining space in proportion to the `fr` weights. In this example the clear
+track widths are 30 cm, 23⅓ cm, and 46⅔ cm. A single fixed track needs a metric
+suffix to distinguish it from a count. Fixed-only lists must exactly fill the
+clear extent after dividers (within floating-point tolerance). Tracks do not
+silently stretch, overflow, or leave an unassigned gap.
+
+`box-grid-areas` uses space-separated columns, `|` between rows (bottom to top),
+and `/` between slices (front to back). The map must explicitly cover the whole
+grid. A dot omits a cell; repeated names merge a rectangular cuboid of cells.
+The divider space inside a merge becomes part of its clear interior. Area names
+start with an ASCII letter or underscore and continue with letters, digits,
+underscores, or hyphens. They are case-sensitive; `all` and `none` are reserved
+for selection/reset syntax.
+
+For example, `a b | a c / d e | d f` describes two columns, two rows, and two
+slices. Area `a` spans both rows in the front-left column and `d` spans both rows
+in the back-left column. A repeated name forming an L shape is invalid: use
+separate rectangular areas to describe the occupied L-shaped footprint.
+
+This single enclosure reproduces the bedroom and annex dimensions:
+
+```xyzdsl
+"Rooms/+0+366c/+0+330c/+0+622c":"box-surface: 1d #fffdd0; box-partition: 1d #fffdd0; box-grid-columns: 140c 196c; box-grid-rows: 1; box-grid-slices: 371c 221c; box-grid-areas: bedroom bedroom / . annex; observable: true;"
+"Rooms/Bed/+1356m+155c/+0+8d/+1d+205c":"cell: bedroom; model: salouis/wooden_bed.glb;"
+"Rooms/AnnexLighting/+728m+34c/+2975m+7c/+133c+301m":"cell: annex; light-source: true; light-color: #ffffff; light-intensity: 10; light-distance: 0;"
+"Rooms/WallTiling/+0+85c/+0+86c/+0+2c":"cell: bedroom; surface: walls; model: salouis/tile_triad.glb; reset-axes: 90,0,0; repeat: x; repeat-gap: 1m; repeat-edge: clip;"
+"Rooms/FloorTiling/+0+67c/+0+67c/+0+1c":"cell: bedroom; surface: bottom; model: salouis/tile_quartet.glb; reset-axes: 90,0,0; repeat: x,y; repeat-gap: 1m; repeat-edge: clip;"
+"Rooms/RoomOpening/+29c+88c/+0+205c/+369c+41c":"cell: bedroom; operation: subtraction;"
+```
+
+The bedroom's clear origin is `(0.1, 0.1, 0.1)` metres and its clear extent is
+`3.46 × 3.10 × 3.71` metres. The annex starts at `(1.60, 0.10, 3.91)` with clear
+extent `1.96 × 3.10 × 2.21` metres. The merged bedroom recovers the 10 cm divider
+between its two column tracks. The rear-left cell has no floor or ceiling;
+boundaries facing that empty space still enclose the adjacent occupied areas.
+These newly exposed walls occupy the reserved `box-partition` thickness and
+use the corresponding directional `box-surface` color and observability. Setting
+that face to `none` also omits its exposed notch walls. Shared walls between
+occupied areas keep the partition color and remain non-observable.
+
+To migrate the two-room scene, replace its two enclosure declarations with
+`Rooms` and add `cell: bedroom` or `cell: annex` to the corresponding direct
+children under `Rooms`. Their interior-relative offsets stay unchanged. Apply
+the cell selection to lights, viewpoints, furniture, tiling, and CSG tools alike.
+Children nested beneath those components use normal parent coordinates.
+
+Numeric selections remain one-based and are not renumbered by omissions. Both
+`cell: 1 1 1` and `cell: 2 1 1` select the entire merged bedroom; `cell: 1 1 2`
+is invalid because that cell is omitted. `cell: all` creates two copies in this
+example. `box-grid-areas: none` restores every atomic cell and its dividers;
+`box-grid: none` clears the whole grid, including tracks and area map.
 
 ### Cell surfaces and shared solid geometry
 
@@ -744,12 +810,21 @@ a diagnostic; `walls` and `all` skip missing faces. Depth fill on an attachment
 uses the selected cell's clear depth normal to that face. Finishes add thickness
 inside the cell but do not further inset the logical cell layout.
 
-The divider lattice is rendered as one static solid per enclosure, containing
+The internal divider lattice is rendered as one static solid per enclosure, containing
 only the boundary of the union of its slabs. Shared junctions emit no overlapping
 solids, duplicate coplanar faces, or internal faces. The generated node has
 `surfaceSourceId` pointing to its enclosure and `partitionGrid: true` metadata;
 selecting it selects the enclosure. Cell instances expose one-based
-`cellIndices` metadata. Individual divider overrides are reserved for a later
+`cellIndices` metadata identifying the first atomic cell of their logical area.
+Area maps trim outer panels to the occupied footprint and generate exposed
+notch-wall groups at their actual boundary planes. Each group has closed
+outward geometry for CSG. Attachments to a face that borders both outside space
+and another area are clipped into separate visibility segments, while retaining
+the original whole-face coordinates and repetition phase. A tile crossing the
+transition may therefore have two clipped render copies. Direct `surface`
+children without `cell` retain enclosure-wide coordinates and attach only to
+occupied portions of the outer bounding faces; use `cell` to target room-specific
+faces, including notch walls and internal partitions. Individual divider overrides are reserved for a later
 extension; they are not part of this syntax.
 
 Outer-shell observability keeps its existing behavior. Internal dividers are
@@ -773,19 +848,26 @@ Counts and indices must be positive safe integers. Reject malformed values,
 out-of-range selections, missing grid parents, missing partition styles for
 multi-cell grids, and dimensions that leave no positive clear cell space.
 Invalid grids omit their enclosure subtree; invalid cell selections omit that
-child subtree. Diagnostics retain the authored line. Version one accepts equal
-counts only: fixed-length/fractional tracks, cell spans, and cell ranges are not
-implemented.
+child subtree. Diagnostics retain the authored line. Track lengths and fractional
+weights must be finite and positive. Fixed-only tracks must fill the available
+clear length; mixed tracks must leave positive space for the fractional tracks.
+Area maps must match all three track counts, contain at least one occupied cell,
+and assign each name to a complete rectangular cuboid. Unknown names and
+selections of omitted cells produce diagnostics. Arbitrary cell ranges and
+individual divider overrides are not supported.
 
 Before generating each grid instance, reserve `(2×columns−1) × (2×rows−1) ×
 (2×slices−1)` units of the shared 10,000 generated-instance budget. This bounds
 both empty cells and solid lattice blocks, and therefore the boundary mesh work,
-even though the solid renders as one mesh. Generated shell panels, cell placement
+even though the solid renders as one mesh. Area-map grids instead reserve
+`(2×columns+1) × (2×rows+1) × (2×slices+1)` to include the shell layers used by
+the trimmed topology. Generated shell panels, cell placement
 frames, attachment frames, and repeated copies also consume the shared budget.
 Exceeding it omits the containing root subtree atomically and releases that
 subtree's reservation so independent roots can still resolve.
 
-Coverage lives in `src/xyzdsl/boxGrid.test.ts` and
-`src/scene/partitionGridGeometry.test.ts`: clear dimensions, references, copies,
+Coverage lives in `src/xyzdsl/boxGrid.test.ts`, `src/xyzdsl/gridTracks.test.ts`,
+`src/scene/partitionGridGeometry.test.ts`, and `src/scene/gridTopology.test.ts`:
+clear dimensions, references, copies,
 attachments, budgets, closed outward geometry without internal faces, CSG,
 picking, and collision.
